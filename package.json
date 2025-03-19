@@ -1,6 +1,6 @@
 {
   "name": "batch-upgrade-npm-packages",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A CLI tool to upgrade npm packages across multiple repositories with automatic PR creation",
   "main": "lib/index.js",
   "bin": {
