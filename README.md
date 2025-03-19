@@ -2,6 +2,8 @@
 
 A command-line tool to upgrade npm packages across multiple repositories with automatic PR creation.
 
+[![npm version](https://img.shields.io/npm/v/batch-upgrade-npm-packages.svg)](https://www.npmjs.com/package/batch-upgrade-npm-packages)
+
 ## Features
 
 - Update npm packages across multiple repositories in one go
