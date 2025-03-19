@@ -25,13 +25,13 @@
 #
 # INTERACTIVE INPUTS:
 #   1. Packages to update (space-separated)
-#      Example: @manifoldxyz/pkg1 @manifoldxyz/pkg2
+#      Example: @coolteam/pkg1 leftpad
 #
 #   2. Version ranges (space-separated, matching package order)
 #      Example: ^1.0.0 ^2.2.1
 #
 #   3. Repository paths (space-separated, relative to current directory)
-#      Example: studio-apps-r2 my-cool-other-repo
+#      Example: some-cool-repo my-cool-other-repo
 #
 # BEHAVIOR:
 #   For each repository, the script will:
@@ -62,9 +62,9 @@
 #
 # EXAMPLE WORKFLOW:
 #   $ ./upgrade-pkgs.sh
-#   Enter packages to update (space-separated): @manifoldxyz/pkg1 @manifoldxyz/pkg2
-#   Enter version ranges (space-separated, matching the order of packages): ^1.0.0 ^2.2.1
-#   Enter repository paths (space-separated): studio-apps-r2 my-cool-other-repo
+#   Enter packages to update (space-separated): @coolteam/pkg1 @otherteam/pkg2 leftpad
+#   Enter version ranges (space-separated, matching the order of packages): ^1.0.0 ^2.2.1 ^3.0.0
+#   Enter repository paths (space-separated): some-cool-repo my-cool-other-repo
 #
 # ====================================================================================================
 
