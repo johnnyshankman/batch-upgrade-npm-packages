@@ -1,0 +1,35 @@
+{
+  "name": "batch-upgrade-npm-packages",
+  "version": "1.0.0",
+  "description": "A CLI tool to upgrade npm packages across multiple repositories with automatic PR creation",
+  "main": "lib/index.js",
+  "bin": {
+    "batch-upgrade-npm": "bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "npm",
+    "upgrade",
+    "batch",
+    "packages",
+    "dependencies",
+    "repositories",
+    "github",
+    "pr"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^9.4.1",
+    "inquirer": "^8.2.5",
+    "semver": "^7.3.8",
+    "execa": "^5.1.1",
+    "ora": "^5.4.1"
+  }
+}
