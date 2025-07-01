@@ -1,0 +1,41 @@
+{
+  "name": "batch-upgrade-npm-packages-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server for batch upgrading npm packages across repositories",
+  "main": "dist/index.js",
+  "bin": {
+    "batch-upgrade-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "npm",
+    "upgrade",
+    "batch",
+    "automation",
+    "github"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.2",
+    "batch-upgrade-npm-packages": "file:../cli",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.8",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist/"
+  ]
+}
