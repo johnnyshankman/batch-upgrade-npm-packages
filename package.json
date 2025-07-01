@@ -7,7 +7,9 @@
     "batch-upgrade-npm": "bin/cli.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [
     "npm",
@@ -27,9 +29,13 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^9.4.1",
-    "inquirer": "^8.2.5",
-    "semver": "^7.3.8",
     "execa": "^5.1.1",
-    "ora": "^5.4.1"
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1",
+    "semver": "^7.3.8"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.3"
   }
 }
