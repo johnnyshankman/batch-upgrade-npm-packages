@@ -1,4 +1,5 @@
 node_modules
 coverage
+dist
 __tests__/integration/__snapshots__
 package-lock.json

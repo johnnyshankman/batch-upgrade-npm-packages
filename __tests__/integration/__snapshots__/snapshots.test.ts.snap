@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`CLI snapshots --help output is stable 1`] = `
+exports[`CLI snapshots > --help output is stable 1`] = `
 "Usage: batch-upgrade-npm <command> [options]
 
 A CLI tool to upgrade npm packages across multiple repositories

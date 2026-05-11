@@ -27,6 +27,10 @@ A command-line tool to upgrade npm packages across multiple repositories with au
 - [GitHub CLI](https://cli.github.com/) (`gh`), authenticated with `gh auth login`
 - npm
 
+The package ships as ESM with bundled TypeScript declarations — no extra
+`@types/*` install is needed if you're using the library API from
+TypeScript.
+
 ## Installation
 
 ```bash
@@ -240,6 +244,44 @@ When `--json` is passed to `upgrade`, exactly one JSON object is written to stdo
 `GIT_CHECKOUT_FAILED`, `GIT_PULL_FAILED`, `GIT_BRANCH_FAILED`, `GIT_PUSH_FAILED`, `NPM_INSTALL_FORCE_FAILED`, `NPM_INSTALL_FAILED`, `GH_PR_CREATE_FAILED`, `CLI_ERROR_<n>` (where `<n>` is the exit code), or `UNKNOWN`.
 
 The process exit code is `0` when `summary.failed === 0` and `1` otherwise. See [Exit codes](#exit-codes) above for usage/auth/not-found/dirty failures that exit before per-repo results are produced.
+
+## Programmatic API
+
+In addition to the CLI, the package exports an ESM module you can drive from
+your own Node.js scripts. The library returns the same result shape that
+`--json` prints to stdout.
+
+```js
+import { updatePackages } from 'batch-upgrade-npm-packages';
+
+const result = await updatePackages({
+  packages: ['react'],
+  versions: ['^18.0.0'],
+  repos: ['./web', './admin'],
+  resetHard: false,
+  baseBranch: null, // null = auto-detect from origin/HEAD
+});
+
+console.log(result.summary); // { total, succeeded, failed, skipped }
+```
+
+With TypeScript, the result and options are fully typed:
+
+```ts
+import { updatePackages } from 'batch-upgrade-npm-packages';
+import type {
+  UpdatePackagesOptions,
+  UpdatePackagesResult,
+  RepositoryResult,
+} from 'batch-upgrade-npm-packages';
+```
+
+The library still requires `gh` to be authenticated and the target repos to
+have clean working trees (or `resetHard: true`). Per-repo failures populate
+`repositories[i].error` / `errorCode` rather than throwing, matching the CLI
+contract. Top-level usage errors (no packages specified, gh not
+authenticated, dirty tree without `resetHard`) throw a `CliError` whose
+`.code` matches the CLI exit-code table.
 
 ## Safety
 

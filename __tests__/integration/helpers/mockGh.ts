@@ -1,8 +1,20 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-function makeMockGh({ failAuth = false, failPr = false } = {}) {
+export interface MockGhOptions {
+  failAuth?: boolean;
+  failPr?: boolean;
+}
+
+export interface MockGh {
+  dir: string;
+  pathPrefix: string;
+  envPath: string;
+  cleanup(): void;
+}
+
+export function makeMockGh({ failAuth = false, failPr = false }: MockGhOptions = {}): MockGh {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bu-mockgh-'));
   const ghPath = path.join(dir, 'gh');
   const authExit = failAuth ? 1 : 0;
@@ -33,11 +45,9 @@ esac
   return {
     dir,
     pathPrefix: dir,
-    envPath: `${dir}:${process.env.PATH}`,
-    cleanup() {
+    envPath: `${dir}:${process.env['PATH'] ?? ''}`,
+    cleanup(): void {
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
 }
-
-module.exports = { makeMockGh };

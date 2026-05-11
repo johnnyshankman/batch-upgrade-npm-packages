@@ -1,18 +1,25 @@
-const log = require('../lib/log');
+import { describe, it, expect, beforeEach } from 'vitest';
+import chalk from 'chalk';
+import * as log from '../lib/log.js';
 
-function captureStream(stream) {
-  const buffers = [];
+interface CapturedStream {
+  drain(): string;
+  restore(): void;
+}
+
+function captureStream(stream: NodeJS.WriteStream): CapturedStream {
+  const buffers: string[] = [];
   const original = stream.write.bind(stream);
-  stream.write = (chunk) => {
-    buffers.push(typeof chunk === 'string' ? chunk : chunk.toString());
+  (stream as { write: (chunk: unknown) => boolean }).write = (chunk: unknown): boolean => {
+    buffers.push(typeof chunk === 'string' ? chunk : String(chunk));
     return true;
   };
   return {
-    drain() {
+    drain(): string {
       return buffers.join('');
     },
-    restore() {
-      stream.write = original;
+    restore(): void {
+      (stream as { write: typeof original }).write = original;
     },
   };
 }
@@ -20,6 +27,7 @@ function captureStream(stream) {
 describe('log', () => {
   beforeEach(() => {
     log.reset();
+    chalk.level = 2;
   });
 
   it('info writes to stderr by default', () => {
@@ -90,21 +98,19 @@ describe('log', () => {
   });
 
   it('color:false sets chalk.level to 0', () => {
-    const chalk = require('chalk');
     log.configure({ color: false });
     expect(chalk.level).toBe(0);
   });
 
   it('NO_COLOR env forces chalk.level to 0', () => {
-    const chalk = require('chalk');
-    const prev = process.env.NO_COLOR;
-    process.env.NO_COLOR = '1';
+    const prev = process.env['NO_COLOR'];
+    process.env['NO_COLOR'] = '1';
     try {
       log.configure({});
       expect(chalk.level).toBe(0);
     } finally {
-      if (prev === undefined) delete process.env.NO_COLOR;
-      else process.env.NO_COLOR = prev;
+      if (prev === undefined) delete process.env['NO_COLOR'];
+      else process.env['NO_COLOR'] = prev;
     }
   });
 
