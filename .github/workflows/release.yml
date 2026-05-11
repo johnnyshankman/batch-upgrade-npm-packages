@@ -51,6 +51,10 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+      # Node 20 ships npm 10.x; Trusted Publishers (OIDC -> registry auth)
+      # requires npm >= 11.5.1. Without this, --provenance signs via Sigstore
+      # but the registry PUT falls back to anonymous and 404s.
+      - run: npm install -g npm@latest
       - run: npm ci
 
       - name: Read version from package.json
