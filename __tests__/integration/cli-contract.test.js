@@ -171,16 +171,7 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
     const repo = makeRepo();
     try {
       const r = await runCli(
-        [
-          '--packages',
-          'react',
-          '--versions',
-          '^18.0.0',
-          '--repos',
-          repo.dir,
-          '--yes',
-          '--json',
-        ],
+        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes', '--json'],
         { env: { PATH: mockGh.envPath } }
       );
       // npm install will fail in the fixture (react isn't really installable

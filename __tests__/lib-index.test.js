@@ -12,7 +12,10 @@ const {
 function tmpPackageJson(contents) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bu-lib-test-'));
   const file = path.join(dir, 'package.json');
-  fs.writeFileSync(file, typeof contents === 'string' ? contents : JSON.stringify(contents, null, 2));
+  fs.writeFileSync(
+    file,
+    typeof contents === 'string' ? contents : JSON.stringify(contents, null, 2)
+  );
   return { dir, file, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
 

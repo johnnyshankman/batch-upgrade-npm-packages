@@ -11,7 +11,11 @@
     "test:unit": "jest --selectProjects unit",
     "test:integration": "jest --selectProjects integration",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "lint": "eslint bin lib __tests__",
+    "lint:fix": "eslint --fix bin lib __tests__",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "npm",
@@ -38,6 +42,8 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "jest": "^30.0.3"
+    "eslint": "^8.57.1",
+    "jest": "^30.0.3",
+    "prettier": "^3.8.3"
   }
 }

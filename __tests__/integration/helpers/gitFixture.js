@@ -28,7 +28,11 @@ function makeRepo({
   fs.writeFileSync(path.join(repoDir, 'package.json'), JSON.stringify(packageJson, null, 2) + '\n');
   fs.writeFileSync(
     path.join(repoDir, 'package-lock.json'),
-    JSON.stringify({ name: packageJson.name, version: packageJson.version, lockfileVersion: 2 }, null, 2) + '\n'
+    JSON.stringify(
+      { name: packageJson.name, version: packageJson.version, lockfileVersion: 2 },
+      null,
+      2
+    ) + '\n'
   );
   for (const [name, content] of Object.entries(extraFiles)) {
     const full = path.join(repoDir, name);

@@ -27,17 +27,20 @@ A command-line tool to upgrade npm packages across multiple repositories with au
 ## Installation
 
 **Global (Recommended)**
+
 ```bash
 npm install -g batch-upgrade-npm-packages
 ```
 
 **Local**
+
 ```bash
 npm install batch-upgrade-npm-packages
 npx batch-upgrade-npm  # to run
 ```
 
 **Authentication**
+
 ```bash
 gh auth login
 ```
@@ -60,28 +63,31 @@ batch-upgrade-npm -p <packages> -v <versions> -r <repos>
 
 **Options**
 
-| Flag | Description | Required |
-|------|-------------|----------|
-| `-i, --interactive` | Launch interactive mode | No |
-| `-p, --packages` | Space-separated package names | Yes* |
-| `-v, --versions` | Space-separated version ranges (must match package order) | Yes* |
-| `-r, --repos` | Space-separated repository paths (relative to current directory) | Yes* |
+| Flag                | Description                                                      | Required |
+| ------------------- | ---------------------------------------------------------------- | -------- |
+| `-i, --interactive` | Launch interactive mode                                          | No       |
+| `-p, --packages`    | Space-separated package names                                    | Yes\*    |
+| `-v, --versions`    | Space-separated version ranges (must match package order)        | Yes\*    |
+| `-r, --repos`       | Space-separated repository paths (relative to current directory) | Yes\*    |
 
 \* Required unless using `-i`
 
 ### Examples
 
 **Single package, multiple repositories:**
+
 ```bash
 batch-upgrade-npm -p react -v "^18.0.0" -r ./web-app ./admin ./mobile
 ```
 
 **Multiple packages, single repository:**
+
 ```bash
 batch-upgrade-npm -p lodash axios -v "^4.17.21" "^1.4.0" -r ./my-project
 ```
 
 **Organization-wide update:**
+
 ```bash
 batch-upgrade-npm \
   -p @company/ui-components @company/api-client \
@@ -90,6 +96,7 @@ batch-upgrade-npm \
 ```
 
 **Version ranges:**
+
 - `^1.2.3` - Compatible with 1.x.x
 - `~1.2.3` - Compatible with 1.2.x
 - `1.2.3` - Exact version
@@ -121,6 +128,7 @@ For each repository:
 ## Output
 
 **Color codes:**
+
 - Blue: Informational
 - Green: Success
 - Yellow: Warnings/skips
@@ -128,19 +136,20 @@ For each repository:
 - Cyan: Section headers
 
 **Common messages:**
+
 - `"Skipping [package]: Not found in package.json"` - Package doesn't exist, continuing with others
 - `"Skipping [package]: Current version X is already >= Y"` - Already up-to-date
 - `"No changes detected..."` - All packages skipped, branch cleaned up
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| "You are not logged into GitHub CLI" | Run `gh auth login` |
-| "Could not switch to main branch" | Ensure repo has 'main' branch (not 'master') |
-| "Installation failed" | Check package compatibility, network, disk space |
-| "Version count doesn't match package count" | Provide one version per package in same order |
-| "Repository path not found" | Verify paths are relative to current directory |
+| Issue                                       | Solution                                         |
+| ------------------------------------------- | ------------------------------------------------ |
+| "You are not logged into GitHub CLI"        | Run `gh auth login`                              |
+| "Could not switch to main branch"           | Ensure repo has 'main' branch (not 'master')     |
+| "Installation failed"                       | Check package compatibility, network, disk space |
+| "Version count doesn't match package count" | Provide one version per package in same order    |
+| "Repository path not found"                 | Verify paths are relative to current directory   |
 
 ## Best Practices
 
