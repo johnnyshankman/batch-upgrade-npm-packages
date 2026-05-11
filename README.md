@@ -254,6 +254,18 @@ The process exit code is `0` when `summary.failed === 0` and `1` otherwise. See 
 
 See [MIGRATING.md](./MIGRATING.md) for the full 1.x → 2.0 migration guide, including the two changes most likely to break existing scripts (`-v` is no longer `--versions`, and confirmation now requires `--yes` / `CI=true` / non-TTY stdin).
 
+## Releasing
+
+Releases are manual, single-button. The maintainer:
+
+1. Opens a PR bumping `version` in `package.json` and adding a new `## [X.Y.Z]` entry in `CHANGELOG.md`. Merge to `main`.
+2. Opens **Actions → release → Run workflow** on `main`. Optionally checks `dry_run` to exercise the preflight without publishing.
+3. Approves the `npm-release` environment gate.
+
+The workflow publishes to npm with provenance via OIDC, then creates the `vX.Y.Z` git tag and matching GitHub release. It refuses to run if the version already exists on npm or as a release — re-running after a successful release fails fast in preflight.
+
+Credentials: **npm Trusted Publishing (OIDC)**. No `NPM_TOKEN` is stored in the repo.
+
 ## License
 
 MIT

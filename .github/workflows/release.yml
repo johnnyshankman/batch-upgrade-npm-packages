@@ -1,0 +1,117 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run preflight only; skip publish/tag/release'
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify (lint + test on Node 20)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+
+  release:
+    name: Publish to npm + tag + GitHub release
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Read version from package.json
+        id: pkg
+        run: |
+          set -euo pipefail
+          v="$(node -p "require('./package.json').version")"
+          n="$(node -p "require('./package.json').name")"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "name=$n"    >> "$GITHUB_OUTPUT"
+          echo "tag=v$v"    >> "$GITHUB_OUTPUT"
+
+      - name: Preflight — workdir clean
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Working tree is dirty after npm ci. Aborting." >&2
+            git status >&2
+            exit 1
+          fi
+
+      - name: Preflight — version not already on npm
+        run: |
+          set -euo pipefail
+          existing="$(npm view "${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}" version 2>/dev/null || true)"
+          if [ -n "$existing" ]; then
+            echo "::error::npm already has ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}. Bump package.json." >&2
+            exit 1
+          fi
+
+      - name: Preflight — GitHub release/tag does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "${{ steps.pkg.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::GitHub release ${{ steps.pkg.outputs.tag }} already exists." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "${{ steps.pkg.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Git tag ${{ steps.pkg.outputs.tag }} already exists on origin." >&2
+            exit 1
+          fi
+
+      - name: Publish to npm (OIDC + provenance)
+        if: ${{ inputs.dry_run == false }}
+        run: npm publish --provenance --access public
+
+      - name: Create and push annotated tag
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.pkg.outputs.tag }}" -m "Release ${{ steps.pkg.outputs.tag }}"
+          git push origin "${{ steps.pkg.outputs.tag }}"
+
+      - name: Create GitHub release
+        if: ${{ inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.pkg.outputs.tag }}" \
+            --verify-tag \
+            --title "${{ steps.pkg.outputs.tag }}" \
+            --generate-notes

@@ -29,6 +29,26 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnnyshankman/batch-upgrade-npm-packages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/johnnyshankman/batch-upgrade-npm-packages/issues"
+  },
+  "homepage": "https://github.com/johnnyshankman/batch-upgrade-npm-packages#readme",
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md",
+    "CHANGELOG.md",
+    "MIGRATING.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=18.0.0"
   },
