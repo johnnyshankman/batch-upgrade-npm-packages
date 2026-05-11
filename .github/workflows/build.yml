@@ -1,12 +1,12 @@
-name: ci
+name: build
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 jobs:
-  test:
-    name: Test (Node ${{ matrix.node }})
+  build:
+    name: Build (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

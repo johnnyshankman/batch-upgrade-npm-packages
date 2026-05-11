@@ -3,6 +3,7 @@
 A command-line tool to upgrade npm packages across multiple repositories with automated pull request creation.
 
 [![npm version](https://img.shields.io/npm/v/batch-upgrade-npm-packages.svg)](https://www.npmjs.com/package/batch-upgrade-npm-packages)
+[![build](https://github.com/johnnyshankman/batch-upgrade-npm-packages/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/johnnyshankman/batch-upgrade-npm-packages/actions/workflows/build.yml)
 
 ## Features
 
