@@ -8,11 +8,15 @@ A CLI tool to upgrade npm packages across multiple repositories
 Options:
   -V, --version                 output the version number
   -p, --packages <packages...>  packages to update (space separated)
-  -v, --versions <versions...>  version ranges (space separated, matching
+  --versions <versions...>      version ranges (space separated, matching
                                 packages order)
   -r, --repos <repos...>        repository paths (space separated, relative to
                                 current directory)
   -i, --interactive             run in interactive mode (will prompt for input)
+  -y, --yes                     skip confirmation prompt (also implied by
+                                CI=true or non-TTY stdin)
+  --reset-hard                  discard uncommitted changes in target repos
+                                before updating (DESTRUCTIVE)
   -h, --help                    display help for command
 "
 `;

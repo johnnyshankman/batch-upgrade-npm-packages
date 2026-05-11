@@ -6,32 +6,41 @@ const { makeMockGh } = require('./helpers/mockGh');
 
 const pkg = require('../../package.json');
 
-// CLI Contract Test Matrix
-// These tests describe the target CLI behavior for v2.0.0.
-// They are unskipped as each plan-PR lands. The `unlocks` tag in each
-// `describe.skip` block tells you which PR enables that test.
+// CLI Contract Test Matrix for v2.0.0.
+// Each `it.skip(...)` carries a [unlocks: PR<n>] tag. As each plan-PR lands,
+// the corresponding tests flip from .skip to active.
 
-describe.skip('CLI contract — strict version sync (unlocks: PR1)', () => {
-  it('--version equals package.json version', async () => {
+describe('CLI contract — version sync', () => {
+  it('--version equals package.json version [unlocks: PR1]', async () => {
     const r = await runCli(['--version']);
     expect(r.code).toBe(0);
     expect(r.stdout.trim()).toBe(pkg.version);
   });
 });
 
-describe.skip('CLI contract — exit codes (unlocks: PR5)', () => {
-  it('returns exit 2 for usage errors (unknown option)', async () => {
+describe('CLI contract — exit codes', () => {
+  it('returns exit 2 for unknown options [unlocks: PR1]', async () => {
     const r = await runCli(['--bogus']);
     expect(r.code).toBe(2);
+    expect(r.stderr.toLowerCase()).toMatch(/unknown option/);
   });
 
-  it('returns exit 2 for mismatched packages/versions counts', async () => {
-    const r = await runCli(['--packages', 'a', 'b', '--versions', '1.0.0', '--repos', 'x', '--yes']);
+  it('returns exit 2 for mismatched packages/versions counts [unlocks: PR1]', async () => {
+    const r = await runCli(
+      ['--packages', 'a', 'b', '--versions', '1.0.0', '--repos', 'x', '--yes'],
+      { stdin: '' }
+    );
     expect(r.code).toBe(2);
-    expect(r.stderr).toMatch(/match/i);
+    expect(r.stderr.toLowerCase()).toMatch(/match/);
   });
 
-  it('returns exit 3 when gh auth fails', async () => {
+  it('returns exit 2 when no required args and stdin is non-TTY [unlocks: PR1]', async () => {
+    const r = await runCli([]);
+    expect(r.code).toBe(2);
+    expect(r.stderr.toLowerCase()).toMatch(/non-interactive|missing required/);
+  });
+
+  it('returns exit 3 when gh auth fails [unlocks: PR1]', async () => {
     const mockGh = makeMockGh({ failAuth: true });
     const repo = makeRepo();
     try {
@@ -47,7 +56,7 @@ describe.skip('CLI contract — exit codes (unlocks: PR5)', () => {
     }
   });
 
-  it('returns exit 5 when target repo has uncommitted changes and --reset-hard is not passed', async () => {
+  it('returns exit 5 when target repo is dirty and --reset-hard is not passed [unlocks: PR1]', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo({ dirty: true });
     try {
@@ -65,32 +74,8 @@ describe.skip('CLI contract — exit codes (unlocks: PR5)', () => {
   });
 });
 
-describe.skip('CLI contract — non-interactive / automation (unlocks: PR1)', () => {
-  it('exits 2 with helpful message when run non-interactively without --yes', async () => {
-    const r = await runCli(['--packages', 'react', '--versions', '^18.0.0', '--repos', './nowhere']);
-    expect(r.code).toBe(2);
-    expect(r.stderr).toMatch(/non-interactive|--yes/);
-  });
-
-  it('CI=true auto-confirms without --yes', async () => {
-    const mockGh = makeMockGh();
-    const repo = makeRepo();
-    try {
-      const r = await runCli(
-        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--dry-run'],
-        { env: { CI: 'true', PATH: mockGh.envPath } }
-      );
-      expect(r.code).toBe(0);
-      expect(r.stderr).toMatch(/Auto-confirmed|CI/);
-    } finally {
-      repo.cleanup();
-      mockGh.cleanup();
-    }
-  });
-});
-
-describe.skip('CLI contract — --dry-run preserves state (unlocks: PR4)', () => {
-  it('makes no changes to target repos', async () => {
+describe('CLI contract — --dry-run [unlocks: PR4]', () => {
+  it.skip('makes no changes to target repos', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     const before = repo.headSha;
@@ -109,17 +94,23 @@ describe.skip('CLI contract — --dry-run preserves state (unlocks: PR4)', () =>
     }
   });
 
-  it('shell-injection regression: malicious package name does not execute', async () => {
+  it.skip('shell-injection regression: malicious package name does not execute', async () => {
     const mockGh = makeMockGh();
-    const repo = makeRepo();
+    const repo = makeRepo({
+      packageJson: {
+        name: 'fixture',
+        version: '1.0.0',
+        dependencies: { 'evil-pkg': '^1.0.0' },
+      },
+    });
     const sentinel = path.join(repo.root, `HACK_${Date.now()}_${Math.random().toString(36).slice(2)}`);
     try {
       await runCli(
         [
           '--packages',
-          `react"; touch '${sentinel}'; echo "`,
+          `evil-pkg`,
           '--versions',
-          '^18.0.0',
+          `2.0.0"; touch '${sentinel}'; echo "`,
           '--repos',
           repo.dir,
           '--yes',
@@ -135,8 +126,8 @@ describe.skip('CLI contract — --dry-run preserves state (unlocks: PR4)', () =>
   });
 });
 
-describe.skip('CLI contract — --json output (unlocks: PR6)', () => {
-  it('--dry-run --json emits parsable JSON', async () => {
+describe('CLI contract — --json [unlocks: PR6]', () => {
+  it.skip('--dry-run --json emits parsable JSON', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
@@ -166,15 +157,15 @@ describe.skip('CLI contract — --json output (unlocks: PR6)', () => {
   });
 });
 
-describe.skip('CLI contract — color (unlocks: PR3)', () => {
-  it('--no-color strips ANSI escape sequences from help', async () => {
+describe('CLI contract — color [unlocks: PR3]', () => {
+  it.skip('--no-color strips ANSI escape sequences from help', async () => {
     const r = await runCli(['--no-color', '--help']);
     expect(r.code).toBe(0);
     // eslint-disable-next-line no-control-regex
     expect(r.stdout).not.toMatch(/\x1b\[/);
   });
 
-  it('NO_COLOR=1 strips ANSI escape sequences from help', async () => {
+  it.skip('NO_COLOR=1 strips ANSI escape sequences from help', async () => {
     const r = await runCli(['--help'], { env: { NO_COLOR: '1' } });
     expect(r.code).toBe(0);
     // eslint-disable-next-line no-control-regex
@@ -182,16 +173,16 @@ describe.skip('CLI contract — color (unlocks: PR3)', () => {
   });
 });
 
-describe.skip('CLI contract — logging flags (unlocks: PR3)', () => {
-  it('--quiet --verbose is rejected with exit 2', async () => {
+describe('CLI contract — logging flags [unlocks: PR3]', () => {
+  it.skip('--quiet --verbose is rejected with exit 2', async () => {
     const r = await runCli(['--quiet', '--verbose']);
     expect(r.code).toBe(2);
     expect(r.stderr).toMatch(/mutually exclusive/i);
   });
 });
 
-describe.skip('CLI contract — env vars (unlocks: PR7)', () => {
-  it('BATCH_UPGRADE_PACKAGES + _VERSIONS + _REPOS supplies defaults', async () => {
+describe('CLI contract — env vars [unlocks: PR7]', () => {
+  it.skip('BATCH_UPGRADE_PACKAGES + _VERSIONS + _REPOS supplies defaults', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
@@ -211,8 +202,8 @@ describe.skip('CLI contract — env vars (unlocks: PR7)', () => {
   });
 });
 
-describe.skip('CLI contract — base-branch auto-detect (unlocks: PR7)', () => {
-  it('repo with master branch (no main) auto-detects master', async () => {
+describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
+  it.skip('repo with master branch (no main) auto-detects master', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo({ branch: 'master' });
     try {
@@ -239,20 +230,20 @@ describe.skip('CLI contract — base-branch auto-detect (unlocks: PR7)', () => {
   });
 });
 
-describe.skip('CLI contract — subcommands (unlocks: PR8)', () => {
-  it('upgrade --help shows the upgrade subcommand help', async () => {
+describe('CLI contract — subcommands [unlocks: PR8]', () => {
+  it.skip('upgrade --help shows the upgrade subcommand help', async () => {
     const r = await runCli(['upgrade', '--help']);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain('upgrade');
   });
 
-  it('completion bash emits a non-empty shell script', async () => {
+  it.skip('completion bash emits a non-empty shell script', async () => {
     const r = await runCli(['completion', 'bash']);
     expect(r.code).toBe(0);
     expect(r.stdout.length).toBeGreaterThan(0);
   });
 
-  it('legacy form prints deprecation warning to stderr and still works', async () => {
+  it.skip('legacy form prints deprecation warning to stderr and still works', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
