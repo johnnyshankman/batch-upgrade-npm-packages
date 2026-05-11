@@ -16,7 +16,4 @@ module.exports = {
       maxWorkers: 1,
     },
   ],
-  collectCoverageFrom: ['lib/**/*.js', 'bin/**/*.js', '!**/node_modules/**'],
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
 };

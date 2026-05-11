@@ -1,0 +1,8 @@
+{
+  "all": true,
+  "include": ["bin/**/*.js", "lib/**/*.js"],
+  "exclude": ["**/node_modules/**", "__tests__/**", "coverage/**"],
+  "reporter": ["text", "lcov", "html"],
+  "report-dir": "coverage",
+  "clean": true
+}

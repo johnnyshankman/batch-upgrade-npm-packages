@@ -51,9 +51,9 @@ batch-upgrade-npm-pkgs.sh   legacy bash predecessor (kept for reference)
 - `npm test` — both projects
 - `npm run test:unit` — fast, no subprocess spawning
 - `npm run test:integration` — `maxWorkers: 1`, spawns the real `bin/cli.js`. Uses `__tests__/integration/helpers/`: `gitFixture.js` (temp git repos), `mockGh.js` (PATH-shimmed fake `gh`), `runCli.js` (subprocess invocation).
-- `npm run test:coverage` — produces `coverage/` artifact uploaded in CI from the Node 20 matrix job.
+- `npm run test:coverage` — runs `c8 jest`. Uses V8 native coverage (not Istanbul) so spawned subprocesses from the integration suite are instrumented too; `bin/cli.js` and `lib/commands/*` show real numbers. Config is `.c8rc.json`. Writes `coverage/` (gitignored), uploaded in CI from the Node 20 matrix job.
 
-Integration tests must continue to spawn the real binary against real git fixtures. Do not mock `runCmd` or replace integration tests with unit-level fakes.
+Integration tests must continue to spawn the real binary against real git fixtures. Do not mock `runCmd` or replace integration tests with unit-level fakes. If you add a new helper that spawns child processes, propagate `process.env` (or at minimum `NODE_V8_COVERAGE`) so coverage stays accurate.
 
 ## Env vars that change behavior
 

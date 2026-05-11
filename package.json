@@ -11,7 +11,7 @@
     "test:unit": "jest --selectProjects unit",
     "test:integration": "jest --selectProjects integration",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "c8 jest",
     "lint": "eslint bin lib __tests__",
     "lint:fix": "eslint --fix bin lib __tests__",
     "format": "prettier --write .",
@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "c8": "^11.0.0",
     "eslint": "^8.57.1",
     "jest": "^30.0.3",
     "prettier": "^3.8.3"
