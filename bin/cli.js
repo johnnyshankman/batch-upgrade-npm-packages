@@ -7,6 +7,7 @@ const ora = require('ora');
 const pkg = require('../package.json');
 const { updatePackages } = require('../lib/index');
 const log = require('../lib/log');
+const { CODES, CliError } = require('../lib/exit-codes');
 
 program
   .name('batch-upgrade-npm')
@@ -125,15 +126,20 @@ async function run() {
 
   if (packages.length !== versions.length) {
     log.error(chalk.red('Error: Number of packages and versions must match.'));
-    process.exit(2);
+    log.error(
+      chalk.red('  → Try: pass one --versions entry per --packages entry, in the same order')
+    );
+    process.exit(CODES.USAGE);
   }
   if (packages.length === 0) {
     log.error(chalk.red('Error: No packages specified.'));
-    process.exit(2);
+    log.error(chalk.red('  → Try: pass --packages <name> [<name>...]'));
+    process.exit(CODES.USAGE);
   }
   if (repos.length === 0) {
     log.error(chalk.red('Error: No repositories specified.'));
-    process.exit(2);
+    log.error(chalk.red('  → Try: pass --repos <path> [<path>...]'));
+    process.exit(CODES.USAGE);
   }
 
   log.info(chalk.cyan('\nUpgrading packages:'));
@@ -163,7 +169,8 @@ async function run() {
     }
   }
 
-  const spinner = log.isQuiet() || log.isJson() ? null : ora('Starting package update process...').start();
+  const spinner =
+    log.isQuiet() || log.isJson() ? null : ora('Starting package update process...').start();
 
   try {
     await updatePackages({
@@ -176,11 +183,17 @@ async function run() {
   } catch (error) {
     if (spinner) spinner.fail(`Error: ${error.message}`);
     else log.error(chalk.red(`Error: ${error.message}`));
-    process.exit(typeof error.code === 'number' ? error.code : 1);
+    if (error instanceof CliError && error.hint) {
+      log.error(chalk.red('  → Try: ' + error.hint));
+    }
+    process.exit(typeof error.code === 'number' ? error.code : CODES.RUNTIME);
   }
 }
 
 run().catch((error) => {
   log.error(chalk.red(`Error: ${error.message}`));
-  process.exit(typeof error.code === 'number' ? error.code : 1);
+  if (error instanceof CliError && error.hint) {
+    log.error(chalk.red('  → Try: ' + error.hint));
+  }
+  process.exit(typeof error.code === 'number' ? error.code : CODES.RUNTIME);
 });
