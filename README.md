@@ -71,10 +71,10 @@ Inspect effective configuration resolved from environment variables.
 ```bash
 batch-upgrade-npm config list
 batch-upgrade-npm config get packages
-batch-upgrade-npm config set repos "./a ./b"   # prints the export line; no on-disk config file is written
+batch-upgrade-npm config set repos "./a ./b"
 ```
 
-Persistent config files are not yet supported. Use environment variables (below) for defaults.
+> **Note:** `config set` is informational only. It does **not** write a config file or persist anything. It prints the equivalent `export …` line for you to copy into your shell profile. Persistent config files are not yet supported — use the environment variables documented below.
 
 ### `completion`
 
@@ -147,6 +147,99 @@ For each repository:
 - **stdout**: machine-readable output only (the JSON summary when `--json` is set; completion scripts; `config get`/`list` output).
 - **stderr**: human-readable progress, warnings, and errors. Safe to discard in scripts (`2>/dev/null`).
 
+## JSON output
+
+When `--json` is passed to `upgrade`, exactly one JSON object is written to stdout after the run completes. Progress, warnings, and errors continue to go to stderr.
+
+```json
+{
+  "summary": {
+    "total": 2,
+    "succeeded": 1,
+    "failed": 0,
+    "skipped": 1
+  },
+  "repositories": [
+    {
+      "repo": "./web",
+      "status": "success",
+      "branch": "update-packages-20260511153400",
+      "baseBranch": "main",
+      "prUrl": "https://github.com/acme/web/pull/42",
+      "updates": [
+        {
+          "package": "react",
+          "fromVersion": "^17.0.2",
+          "toVersion": "^18.0.0",
+          "section": "dependencies"
+        }
+      ],
+      "error": null,
+      "errorCode": null,
+      "dryRun": false
+    },
+    {
+      "repo": "./admin",
+      "status": "skipped",
+      "branch": "update-packages-20260511153400",
+      "baseBranch": "main",
+      "prUrl": null,
+      "updates": [],
+      "error": null,
+      "errorCode": null,
+      "dryRun": false
+    }
+  ],
+  "dryRun": false
+}
+```
+
+### Top-level fields
+
+| Field          | Type    | Description                                                 |
+| -------------- | ------- | ----------------------------------------------------------- |
+| `summary`      | object  | Aggregated counts across all repositories                   |
+| `repositories` | array   | One entry per repository in the same order as `--repos`     |
+| `dryRun`       | boolean | Whether the run was a `--dry-run` preview (no side effects) |
+
+### `summary` fields
+
+| Field       | Type   | Description                             |
+| ----------- | ------ | --------------------------------------- |
+| `total`     | number | Total number of repositories processed  |
+| `succeeded` | number | Repositories whose PR was created       |
+| `failed`    | number | Repositories that errored               |
+| `skipped`   | number | Repositories with no applicable updates |
+
+### `repositories[]` fields
+
+| Field        | Type           | Description                                                                                          |
+| ------------ | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `repo`       | string         | Repository path as passed to `--repos`                                                               |
+| `status`     | string         | One of `"success"`, `"failed"`, `"skipped"`                                                          |
+| `branch`     | string \| null | Feature branch name (`update-packages-YYYYMMDDHHmmss`); `null` if the run failed before branching    |
+| `baseBranch` | string \| null | Detected (or `--base`-overridden) base branch; `null` if detection itself failed                     |
+| `prUrl`      | string \| null | URL of the created pull request; `null` if no PR was created                                         |
+| `updates`    | array          | Per-package updates that were applied; empty when no packages matched or all were already up-to-date |
+| `error`      | string \| null | Human-readable error message when `status === "failed"`                                              |
+| `errorCode`  | string \| null | Stable token identifying the failure mode (see below); `null` on success/skip                        |
+| `dryRun`     | boolean        | Whether this repo was processed in `--dry-run` mode                                                  |
+
+### `updates[]` fields
+
+| Field         | Type   | Description                                                        |
+| ------------- | ------ | ------------------------------------------------------------------ |
+| `package`     | string | npm package name                                                   |
+| `fromVersion` | string | Version range that was in `package.json` before the update         |
+| `toVersion`   | string | Version range now in `package.json`                                |
+| `section`     | string | One of `"dependencies"`, `"devDependencies"`, `"peerDependencies"` |
+
+### `errorCode` values
+
+`GIT_CHECKOUT_FAILED`, `GIT_PULL_FAILED`, `GIT_BRANCH_FAILED`, `GIT_PUSH_FAILED`, `NPM_INSTALL_FORCE_FAILED`, `NPM_INSTALL_FAILED`, `GH_PR_CREATE_FAILED`, `CLI_ERROR_<n>` (where `<n>` is the exit code), or `UNKNOWN`.
+
+The process exit code is `0` when `summary.failed === 0` and `1` otherwise. See [Exit codes](#exit-codes) above for usage/auth/not-found/dirty failures that exit before per-repo results are produced.
+
 ## Safety
 
 - Refuses to touch repos with uncommitted changes unless you pass `--reset-hard`.
@@ -156,27 +249,9 @@ For each repository:
 - Arguments (package names, version strings, PR titles, PR bodies) are passed to subprocesses as argv arrays, never spliced into shell strings — shell-injection-safe.
 - `--dry-run` emits `[dry-run] Would run: …` lines for every mutating operation that would have executed.
 
-## Migrating from 1.x
+## Upgrading from 1.x?
 
-`v2.0.0` is a breaking release. Most changes are flag layout and exit codes; the core upgrade workflow is unchanged.
-
-| 1.x form                                         | 2.0.0 form                                                           |
-| ------------------------------------------------ | -------------------------------------------------------------------- |
-| `batch-upgrade-npm -p react -v ^18.0.0 -r ./app` | `batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./app`     |
-| `batch-upgrade-npm -p react -v ^18.0.0 -r ./app` | (legacy form still works with a deprecation warning until 3.0)       |
-| (always-on confirmation)                         | `--yes` / `CI=true` / non-TTY auto-confirms; otherwise still prompts |
-| (silently runs `git reset --hard`)               | Aborts with exit 5; pass `--reset-hard` to opt in                    |
-| `-v` was `--versions`                            | `-v` is now `--verbose`; use long-only `--versions`                  |
-| Hardcoded `main` base branch                     | Auto-detected per-repo; override with `-b/--base`                    |
-| Exit codes 0/1 only                              | 0/1/2/3/4/5 — see Exit codes table above                             |
-| All output to stdout                             | Progress on stderr; data on stdout                                   |
-| No JSON, no env vars, no completion              | `--json`, `BATCH_UPGRADE_*` env vars, `completion <shell>`           |
-| Node.js 14+                                      | Node.js 18+                                                          |
-
-The two changes most likely to break existing scripts:
-
-1. **`-v` is no longer `--versions`.** A `sed -i 's/ -v / --versions /g' your-ci-script.sh` will fix scripts.
-2. **Confirmation now requires `--yes` (or `CI=true`).** Existing CI runs that piped `y` to stdin should now use `--yes`.
+See [MIGRATING.md](./MIGRATING.md) for the full 1.x → 2.0 migration guide, including the two changes most likely to break existing scripts (`-v` is no longer `--versions`, and confirmation now requires `--yes` / `CI=true` / non-TTY stdin).
 
 ## License
 
