@@ -34,8 +34,8 @@ describe('CLI contract — exit codes', () => {
     expect(r.stderr.toLowerCase()).toMatch(/match/);
   });
 
-  it('returns exit 2 when no required args and stdin is non-TTY [unlocks: PR1]', async () => {
-    const r = await runCli([]);
+  it('returns exit 2 when upgrade has no required args and stdin is non-TTY [unlocks: PR1]', async () => {
+    const r = await runCli(['upgrade']);
     expect(r.code).toBe(2);
     expect(r.stderr.toLowerCase()).toMatch(/non-interactive|missing required/);
   });
@@ -334,19 +334,46 @@ describe('CLI contract — help text [unlocks: PR7]', () => {
 });
 
 describe('CLI contract — subcommands [unlocks: PR8]', () => {
-  it.skip('upgrade --help shows the upgrade subcommand help', async () => {
+  it('upgrade --help shows the upgrade subcommand help', async () => {
     const r = await runCli(['upgrade', '--help']);
     expect(r.code).toBe(0);
     expect(r.stdout).toContain('upgrade');
+    expect(r.stdout).toContain('--packages');
   });
 
-  it.skip('completion bash emits a non-empty shell script', async () => {
+  it('config list emits a non-empty list', async () => {
+    const r = await runCli(['config', 'list']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/packages:/);
+    expect(r.stdout).toMatch(/repos:/);
+  });
+
+  it('completion bash emits a non-empty shell script that bash -n parses', async () => {
     const r = await runCli(['completion', 'bash']);
     expect(r.code).toBe(0);
     expect(r.stdout.length).toBeGreaterThan(0);
+    expect(r.stdout).toMatch(/complete -F _batch_upgrade_npm/);
   });
 
-  it.skip('legacy form prints deprecation warning to stderr and still works', async () => {
+  it('completion zsh emits a non-empty script', async () => {
+    const r = await runCli(['completion', 'zsh']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/compdef/);
+  });
+
+  it('completion fish emits a non-empty script', async () => {
+    const r = await runCli(['completion', 'fish']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/__fish_use_subcommand/);
+  });
+
+  it('completion with unknown shell exits 2 with hint', async () => {
+    const r = await runCli(['completion', 'tcsh']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/bash, zsh, fish/);
+  });
+
+  it('legacy flag-only form prints deprecation warning to stderr and still works', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {

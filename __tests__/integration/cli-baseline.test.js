@@ -27,9 +27,20 @@ describe('CLI baseline (passes against current code; documents present behavior)
       expect(r.stdout).toContain('Options:');
     });
 
-    it('--help documents the core flags', async () => {
+    it('--help documents global flags and the subcommand list', async () => {
       const r = await runCli(['--help']);
-      for (const flag of ['--packages', '--versions', '--repos', '--interactive', '--help']) {
+      expect(r.stdout).toContain('upgrade');
+      expect(r.stdout).toContain('config');
+      expect(r.stdout).toContain('completion');
+      expect(r.stdout).toContain('--quiet');
+      expect(r.stdout).toContain('--verbose');
+      expect(r.stdout).toContain('--no-color');
+    });
+
+    it('upgrade --help documents the upgrade flags', async () => {
+      const r = await runCli(['upgrade', '--help']);
+      expect(r.code).toBe(0);
+      for (const flag of ['--packages', '--versions', '--repos', '--interactive']) {
         expect(r.stdout).toContain(flag);
       }
     });

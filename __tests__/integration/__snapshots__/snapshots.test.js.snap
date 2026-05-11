@@ -1,44 +1,36 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`CLI snapshots --help output is stable 1`] = `
-"Usage: batch-upgrade-npm [options]
+"Usage: batch-upgrade-npm [options] [command]
 
 A CLI tool to upgrade npm packages across multiple repositories
 
 Options:
-  -V, --version                 output the version number
-  -p, --packages <packages...>  packages to update (space separated)
-  --versions <versions...>      version ranges (space separated, matching
-                                packages order)
-  -r, --repos <repos...>        repository paths (space separated, relative to
-                                current directory)
-  -b, --base <branch>           base branch to update against (auto-detected
-                                from origin/HEAD if omitted)
-  -i, --interactive             run in interactive mode (will prompt for input)
-  -y, --yes                     skip confirmation prompt (also implied by
-                                CI=true or non-TTY stdin)
-  --reset-hard                  discard uncommitted changes in target repos
-                                before updating (DESTRUCTIVE)
-  -n, --dry-run                 preview changes without modifying any
-                                repository
-  --json                        emit machine-readable JSON summary to stdout
-  -q, --quiet                   suppress non-error output
-  -v, --verbose                 verbose output (includes child process output)
-  --debug                       debug output (alias for --verbose with extra
-                                detail)
-  --no-color                    disable colorized output (also honors NO_COLOR
-                                env)
-  -h, --help                    display help for command
+  -V, --version       output the version number
+  -q, --quiet         suppress non-error output
+  -v, --verbose       verbose output (includes child process output)
+  --debug             debug output (alias for --verbose with extra detail)
+  --no-color          disable colorized output (also honors NO_COLOR env)
+  -h, --help          display help for command
+
+Commands:
+  upgrade [options]   Update packages across one or more repositories and open
+                      PRs
+  config              Inspect effective configuration resolved from environment
+                      variables
+  completion <shell>  Print a shell completion script. Supported shells: bash,
+                      zsh, fish
+  help [command]      display help for command
 
 Examples:
   Update one package across multiple repos:
-    $ batch-upgrade-npm -p react --versions ^18.0.0 -r ./web ./admin
+    $ batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./web ./admin
 
   Multiple packages, one repo, dry-run preview:
-    $ batch-upgrade-npm -p lodash axios --versions ^4.17.21 ^1.4.0 -r ./api --dry-run
+    $ batch-upgrade-npm upgrade -p lodash axios --versions ^4.17.21 ^1.4.0 -r ./api --dry-run
 
   JSON summary in CI:
-    $ CI=true batch-upgrade-npm --json -p react --versions ^18.0.0 -r ./app > result.json
+    $ CI=true batch-upgrade-npm upgrade --json -p react --versions ^18.0.0 -r ./app > result.json
 
 Environment:
   NO_COLOR=1                    Disable colored output
@@ -56,6 +48,8 @@ Exit codes:
   3  GitHub CLI authentication failure
   4  Repository or base branch not found
   5  Dirty working tree (use --reset-hard to override)
+
+Run 'batch-upgrade-npm <command> --help' for command-specific options.
 
 "
 `;
