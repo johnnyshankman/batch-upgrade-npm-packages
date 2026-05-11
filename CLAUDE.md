@@ -16,7 +16,7 @@ Current version: 3.0.0 (see `CHANGELOG.md` for the 3.0 breaking changes — ESM-
 - CLI framework: `commander` v12
 - Subprocess: `execa` v9 (argv-array calls only — never shell strings)
 - Prompts: `inquirer` v12
-- Spinner: `ora` v9; colors: `chalk` v5
+- Spinner: `ora` v8 (held back from v9 because ora 9 requires Node 20+); colors: `chalk` v5
 - Semver: `semver` v7
 - Tests: `vitest` v2 with two workspace projects (`unit`, `integration`); coverage via `@vitest/coverage-v8`
 - Lint/format: ESLint 9 (flat config, `eslint.config.js`) + `typescript-eslint` v8 + Prettier 3

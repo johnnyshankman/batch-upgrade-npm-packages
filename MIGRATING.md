@@ -64,7 +64,8 @@ as the first positional argument.
   runs directly from the source — no build step required.
 - ESLint flat config (`eslint.config.js`); `.eslintrc.json` is gone.
 - Dependency majors bumped to their ESM-only releases (chalk 5, execa 9,
-  inquirer 12, ora 9, commander 12). No observable behavior change.
+  inquirer 12, ora 8, commander 12). No observable behavior change. (ora is
+  held at v8 because ora 9 raises its Node minimum to 20.)
 
 ---
 

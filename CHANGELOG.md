@@ -47,8 +47,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   for running tests directly against `.ts` source (no pre-build step
   required to run `npm test`).
 - **Dependency bumps (ESM-only majors):** `chalk` 4 → 5, `execa` 5 → 9,
-  `inquirer` 8 → 12, `ora` 5 → 9, `commander` 9 → 12. Runtime behavior is
-  preserved; these moves were forced by the ESM-only conversion.
+  `inquirer` 8 → 12, `ora` 5 → 8, `commander` 9 → 12. Runtime behavior is
+  preserved; these moves were forced by the ESM-only conversion. (`ora` is
+  pinned to `^8` rather than `^9` because ora 9 raises its minimum to
+  Node 20.)
 - **Coverage:** `c8` → `@vitest/coverage-v8`. Same V8 native coverage
   underneath, with source maps that attribute lines back to the `.ts`
   source — including the bin spawned by integration tests.
