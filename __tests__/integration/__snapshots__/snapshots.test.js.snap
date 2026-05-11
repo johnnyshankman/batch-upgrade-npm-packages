@@ -19,6 +19,7 @@ Options:
                                 before updating (DESTRUCTIVE)
   -n, --dry-run                 preview changes without modifying any
                                 repository
+  --json                        emit machine-readable JSON summary to stdout
   -q, --quiet                   suppress non-error output
   -v, --verbose                 verbose output (includes child process output)
   --debug                       debug output (alias for --verbose with extra

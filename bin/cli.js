@@ -26,6 +26,7 @@ program
     'discard uncommitted changes in target repos before updating (DESTRUCTIVE)'
   )
   .option('-n, --dry-run', 'preview changes without modifying any repository')
+  .option('--json', 'emit machine-readable JSON summary to stdout')
   .option('-q, --quiet', 'suppress non-error output')
   .option('-v, --verbose', 'verbose output (includes child process output)')
   .option('--debug', 'debug output (alias for --verbose with extra detail)')
@@ -62,6 +63,7 @@ async function run() {
     debug: options.debug === true,
     color: options.color === false ? false : undefined,
     dryRun: options.dryRun === true,
+    json: options.json === true,
   });
 
   let packages = options.packages || [];
@@ -173,13 +175,19 @@ async function run() {
     log.isQuiet() || log.isJson() ? null : ora('Starting package update process...').start();
 
   try {
-    await updatePackages({
+    const result = await updatePackages({
       packages,
       versions,
       repos,
       resetHard: options.resetHard === true,
     });
     if (spinner) spinner.succeed('Package update process completed successfully.');
+    if (log.isJson()) {
+      process.stdout.write(JSON.stringify(result) + '\n');
+    }
+    const exitCode =
+      result.summary.failed > 0 ? CODES.RUNTIME : CODES.SUCCESS;
+    process.exit(exitCode);
   } catch (error) {
     if (spinner) spinner.fail(`Error: ${error.message}`);
     else log.error(chalk.red(`Error: ${error.message}`));

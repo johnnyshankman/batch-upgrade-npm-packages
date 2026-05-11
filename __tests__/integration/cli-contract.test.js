@@ -131,7 +131,7 @@ describe('CLI contract — --dry-run [unlocks: PR4]', () => {
 });
 
 describe('CLI contract — --json [unlocks: PR6]', () => {
-  it.skip('--dry-run --json emits parsable JSON', async () => {
+  it('--dry-run --json emits parsable JSON', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
@@ -150,10 +150,48 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(0);
-      const parsed = JSON.parse(r.stdout);
+      const parsed = JSON.parse(r.stdout.trim());
       expect(parsed).toHaveProperty('summary');
+      expect(parsed.summary).toEqual({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
       expect(parsed).toHaveProperty('repositories');
       expect(Array.isArray(parsed.repositories)).toBe(true);
+      expect(parsed.repositories[0].status).toBe('success');
+      expect(parsed.repositories[0].updates).toEqual([
+        { package: 'react', fromVersion: '^17.0.0', toVersion: '^18.0.0', section: 'dependencies' },
+      ]);
+      expect(parsed.dryRun).toBe(true);
+    } finally {
+      repo.cleanup();
+      mockGh.cleanup();
+    }
+  });
+
+  it('--json without --dry-run captures the gh pr create URL', async () => {
+    const mockGh = makeMockGh();
+    const repo = makeRepo();
+    try {
+      const r = await runCli(
+        [
+          '--packages',
+          'react',
+          '--versions',
+          '^18.0.0',
+          '--repos',
+          repo.dir,
+          '--yes',
+          '--json',
+        ],
+        { env: { PATH: mockGh.envPath } }
+      );
+      // npm install will fail in the fixture (react isn't really installable
+      // in a standalone temp dir without registry access in CI); accept either
+      // success with prUrl, or failure status, but the JSON must always parse.
+      const parsed = JSON.parse(r.stdout.trim());
+      expect(parsed).toHaveProperty('summary');
+      expect(parsed).toHaveProperty('repositories');
+      if (parsed.repositories[0].status === 'success') {
+        expect(parsed.repositories[0].prUrl).toBe('https://github.com/fake/repo/pull/1');
+      }
     } finally {
       repo.cleanup();
       mockGh.cleanup();
