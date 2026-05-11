@@ -12,16 +12,16 @@ Current version: 3.0.0 (see `CHANGELOG.md` for the 3.0 breaking changes — ESM-
 
 - Runtime: Node.js >=18
 - Module format: ESM (`"type": "module"`). Source is TypeScript; published artifact is plain ESM JS in `dist/`.
-- Source language: TypeScript 5 (strict, `NodeNext`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
+- Source language: TypeScript 5 (strict, `NodeNext`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `isolatedModules`)
 - CLI framework: `commander` v12
 - Subprocess: `execa` v9 (argv-array calls only — never shell strings)
 - Prompts: `inquirer` v12
 - Spinner: `ora` v8 (held back from v9 because ora 9 requires Node 20+); colors: `chalk` v5
 - Semver: `semver` v7
-- Tests: `vitest` v2 with two workspace projects (`unit`, `integration`); coverage via `@vitest/coverage-v8`
+- Tests: `vitest` v2 with two workspace projects (`unit`, `integration`); coverage via `c8` wrapping vitest (config in `.c8rc.json`)
 - Lint/format: ESLint 9 (flat config, `eslint.config.js`) + `typescript-eslint` v8 + Prettier 3
 - Build: `tsc` → `dist/`, post-build script restores shebang + `chmod +x dist/bin/cli.js`
-- CI: GitHub Actions, matrix Node 18/20/22
+- CI: GitHub Actions on Node 18/20/22 matrix. Three workflows: `build.yml` (push to `main`), `ci.yml` (PRs to `main`), `release.yml` (manual `workflow_dispatch` — npm Trusted Publishing via OIDC + provenance, gated on the `npm-release` environment).
 
 ## Layout
 
@@ -39,9 +39,12 @@ scripts/post-build.mjs      Post-tsc step: shebang + chmod on dist/bin/cli.js
 __tests__/                  unit tests at top level, integration/ spawns real CLI via tsx
 tsconfig.json               Source compile config (emits dist/)
 tsconfig.test.json          Test-side typecheck only (extends, noEmit)
-vitest.config.ts            Global vitest options + coverage config
+vitest.config.ts            Global vitest options (no coverage block — c8 owns it)
 vitest.workspace.ts         Two-project workspace (unit, integration)
+.c8rc.json                  c8 coverage config (include bin/lib, exclude tests/dist)
 eslint.config.js            ESLint 9 flat config
+.github/workflows/          build.yml (push), ci.yml (PR), release.yml (OIDC publish)
+MIGRATING.md                1.x → 2.0 migration guide (referenced from README)
 batch-upgrade-npm-pkgs.sh   legacy bash predecessor (kept for reference)
 ```
 
@@ -61,7 +64,7 @@ batch-upgrade-npm-pkgs.sh   legacy bash predecessor (kept for reference)
 - `npm test` — both projects (vitest)
 - `npm run test:unit` — fast, no subprocess spawning. Vitest project `unit`.
 - `npm run test:integration` — Vitest project `integration` (`pool: 'forks'`, `singleFork: true`). Spawns the real `bin/cli.ts` via `node --import tsx/esm` so tests run against TypeScript source without a build step. Helpers in `__tests__/integration/helpers/`: `gitFixture.ts` (temp git repos), `mockGh.ts` (PATH-shimmed fake `gh`), `runCli.ts` (subprocess invocation).
-- `npm run test:coverage` — Vitest with `@vitest/coverage-v8`. V8 native coverage that propagates `NODE_V8_COVERAGE` to the spawned `tsx`-loaded subprocess. Source maps map hits back to `.ts` source; `bin/cli.ts` and `lib/commands/*.ts` show real numbers. Writes `coverage/` (gitignored).
+- `npm run test:coverage` — `c8 vitest run`. c8 wraps the vitest process and propagates `NODE_V8_COVERAGE` to the spawned `tsx`-loaded subprocess used by integration tests, so coverage for `bin/cli.ts` and `lib/commands/*.ts` is accurate (vitest's in-process inspector-based provider would miss it). Source maps attribute hits back to `.ts` source. Settings live in `.c8rc.json`. Writes `coverage/` (gitignored).
 - `npm run typecheck` — runs `tsc --noEmit` on both `tsconfig.json` (source) and `tsconfig.test.json` (tests). Fast; catches type drift before tests run.
 - `npm run build` — `tsc` + `scripts/post-build.mjs`. Emits `dist/bin/cli.js` (with shebang, mode 0755) and `dist/lib/**/*.{js,d.ts}`. CI runs this on every Node version; `prepublishOnly` runs it before `npm publish`.
 
@@ -92,4 +95,4 @@ Precedence: CLI flag > env var > interactive prompt > error.
 
 ## Context Prime — session bootstrap
 
-Read on session start: `README.md`, `CHANGELOG.md`, this file, `package.json`, then any `lib/` file relevant to the task. The codebase is small (~10 TypeScript source files) — full reads are cheap. There is no separate `/docs` directory; design context lives in the CHANGELOG entries (especially 2.0 and 3.0) and inline in the files above.
+Read on session start: `README.md`, `CHANGELOG.md`, this file, `package.json`, then any `lib/` file relevant to the task. The codebase is small (~10 TypeScript source files) — full reads are cheap. There is no separate `/docs` directory; design context lives in the CHANGELOG entries (especially 2.0 and 3.0), `MIGRATING.md` (1.x → 2.0 migration), and inline in the files above.
