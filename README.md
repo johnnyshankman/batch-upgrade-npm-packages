@@ -6,158 +6,177 @@ A command-line tool to upgrade npm packages across multiple repositories with au
 
 ## Features
 
-- Update npm packages across multiple repositories simultaneously
-- Smart version comparison using semver (skips packages already up-to-date)
-- Searches dependencies, devDependencies, and peerDependencies
-- Creates timestamped feature branches for each repository
-- Dual-phase installation verification (force + clean install)
-- Automatic PR creation with detailed update information
-- Interactive and CLI modes for different workflows
-- Gracefully skips missing packages without failing
-- Colorized terminal output with progress indicators
-- Automatic branch cleanup when no changes are made
+- Update npm packages across multiple repositories in one command
+- Subcommand-based CLI (`upgrade`, `config`, `completion`) familiar to users of `gh`/`docker`/`kubectl`
+- Safe by default: refuses to overwrite uncommitted changes unless you explicitly opt in
+- Auto-detects each repo's base branch (`main`, `master`, or whatever `origin/HEAD` points at) — no hardcoding
+- `--dry-run` previews every change without touching any repo or remote
+- `--json` emits a machine-readable summary for scripting and CI
+- Documented exit codes; respects `NO_COLOR`, `CI`, and `BATCH_UPGRADE_*` env vars
+- Creates timestamped feature branches and opens PRs via the GitHub CLI; never commits to main
+- Skips packages that are already up-to-date (semver-aware)
+- Searches `dependencies`, `devDependencies`, and `peerDependencies`
+- Per-repo failures don't stop the run; the summary tells you what succeeded
+- Shell completion for bash, zsh, and fish
 
 ## Requirements
 
-- Node.js 14 or higher
+- Node.js 18 or higher
 - Git
-- GitHub CLI (gh) - Must be authenticated
+- [GitHub CLI](https://cli.github.com/) (`gh`), authenticated with `gh auth login`
 - npm
 
 ## Installation
 
-**Global (Recommended)**
-
 ```bash
 npm install -g batch-upgrade-npm-packages
+gh auth login   # one-time
 ```
 
-**Local**
+## Quick start
 
 ```bash
-npm install batch-upgrade-npm-packages
-npx batch-upgrade-npm  # to run
+# Update one package across three repos
+batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./web ./admin ./mobile
+
+# Preview only — no commits, no PRs, no fs changes
+batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./web --dry-run
+
+# JSON summary for CI
+CI=true batch-upgrade-npm upgrade --json -p react --versions ^18.0.0 -r ./app > result.json
 ```
 
-**Authentication**
+## Commands
+
+### `upgrade`
+
+Update packages across one or more repositories and open PRs.
+
+| Flag                           | Description                                                               |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `-p, --packages <packages...>` | Packages to update (space-separated)                                      |
+| `--versions <versions...>`     | Version ranges in the same order as `--packages`                          |
+| `-r, --repos <repos...>`       | Repository paths                                                          |
+| `-b, --base <branch>`          | Base branch override (auto-detected from `origin/HEAD` if omitted)        |
+| `-i, --interactive`            | Prompt for any missing input                                              |
+| `-y, --yes`                    | Skip the confirmation prompt (also implied by `CI=true` or non-TTY stdin) |
+| `--reset-hard`                 | Discard uncommitted changes in target repos before updating (DESTRUCTIVE) |
+| `-n, --dry-run`                | Preview without modifying any repository                                  |
+| `--json`                       | Emit a machine-readable JSON summary on stdout                            |
+
+### `config`
+
+Inspect effective configuration resolved from environment variables.
 
 ```bash
-gh auth login
+batch-upgrade-npm config list
+batch-upgrade-npm config get packages
+batch-upgrade-npm config set repos "./a ./b"   # prints the export line; no on-disk config file is written
 ```
 
-## Usage
+Persistent config files are not yet supported. Use environment variables (below) for defaults.
 
-### Interactive Mode
+### `completion`
+
+Print a shell completion script.
 
 ```bash
-batch-upgrade-npm -i
+# Bash
+eval "$(batch-upgrade-npm completion bash)"
+
+# Zsh
+batch-upgrade-npm completion zsh > "${fpath[1]}/_batch-upgrade-npm"
+
+# Fish
+batch-upgrade-npm completion fish > ~/.config/fish/completions/batch-upgrade-npm.fish
 ```
 
-Prompts for packages, versions, and repository paths.
+## Global flags
 
-### CLI Mode
+| Flag            | Description                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| `-V, --version` | Print version                                                    |
+| `-h, --help`    | Print help (use `<command> --help` for command-specific options) |
+| `-q, --quiet`   | Suppress non-error output                                        |
+| `-v, --verbose` | Verbose output (includes child-process output)                   |
+| `--debug`       | Debug output (alias for `--verbose` with extra detail)           |
+| `--no-color`    | Disable colorized output (also honors `NO_COLOR=1`)              |
 
-```bash
-batch-upgrade-npm -p <packages> -v <versions> -r <repos>
-```
+`--quiet` is mutually exclusive with `--verbose` and `--debug`.
 
-**Options**
+## Environment variables
 
-| Flag                | Description                                                      | Required |
-| ------------------- | ---------------------------------------------------------------- | -------- |
-| `-i, --interactive` | Launch interactive mode                                          | No       |
-| `-p, --packages`    | Space-separated package names                                    | Yes\*    |
-| `-v, --versions`    | Space-separated version ranges (must match package order)        | Yes\*    |
-| `-r, --repos`       | Space-separated repository paths (relative to current directory) | Yes\*    |
+| Var                         | Effect                                               |
+| --------------------------- | ---------------------------------------------------- |
+| `NO_COLOR=1`                | Disable colored output                               |
+| `CI=true`                   | Auto-confirm (skips the prompt before any work runs) |
+| `BATCH_UPGRADE_PACKAGES`    | Default for `--packages` (space-separated)           |
+| `BATCH_UPGRADE_VERSIONS`    | Default for `--versions` (space-separated)           |
+| `BATCH_UPGRADE_REPOS`       | Default for `--repos` (space-separated)              |
+| `BATCH_UPGRADE_BASE_BRANCH` | Default for `--base`                                 |
+| `BATCH_UPGRADE_YES=true`    | Default for `--yes`                                  |
 
-\* Required unless using `-i`
+Precedence: command-line flag > environment variable > interactive prompt > error.
 
-### Examples
+## Exit codes
 
-**Single package, multiple repositories:**
+| Code | Meaning                                             |
+| ---- | --------------------------------------------------- |
+| `0`  | Success                                             |
+| `1`  | One or more repositories failed                     |
+| `2`  | Usage error (invalid flags or arguments)            |
+| `3`  | GitHub CLI authentication failure                   |
+| `4`  | Repository or base branch not found                 |
+| `5`  | Dirty working tree (use `--reset-hard` to override) |
 
-```bash
-batch-upgrade-npm -p react -v "^18.0.0" -r ./web-app ./admin ./mobile
-```
-
-**Multiple packages, single repository:**
-
-```bash
-batch-upgrade-npm -p lodash axios -v "^4.17.21" "^1.4.0" -r ./my-project
-```
-
-**Organization-wide update:**
-
-```bash
-batch-upgrade-npm \
-  -p @company/ui-components @company/api-client \
-  -v "^2.1.0" "^1.5.0" \
-  -r ./repo1 ./repo2 ./repo3
-```
-
-**Version ranges:**
-
-- `^1.2.3` - Compatible with 1.x.x
-- `~1.2.3` - Compatible with 1.2.x
-- `1.2.3` - Exact version
-
-## How It Works
+## How it works
 
 For each repository:
 
-1. **Prepare**: Checkout main, pull latest, discard uncommitted changes
-2. **Branch**: Create timestamped feature branch (`update-packages-YYYYMMDDHHmmss`)
-3. **Analyze**: Check each package version, skip if not found or already up-to-date
-4. **Update**: Modify package.json for packages needing updates
-5. **Verify**: Run `npm install --force`, then clean `npm install` to validate
-6. **Commit**: Stage changes, commit with descriptive message, push to origin
-7. **PR**: Create pull request with updated package list (only if changes detected)
-8. **Cleanup**: Delete branch if no changes were made
+1. **Pre-flight**: Verify the working tree is clean. If dirty without `--reset-hard`, abort with exit 5.
+2. **Branch**: Detect the base branch (`origin/HEAD` → fallback `main` → `master`), check it out, pull, and create `update-packages-YYYYMMDDHHmmss`.
+3. **Analyze**: For each package, locate it in `dependencies` / `devDependencies` / `peerDependencies` and skip when the current version is already `>= target`.
+4. **Update**: Edit `package.json` (skipped in `--dry-run`).
+5. **Verify**: `npm install --force` then a clean `npm install` to catch lockfile/peer issues.
+6. **Commit & push**: Stage `package.json` + `package-lock.json`, commit, push to `origin`.
+7. **PR**: Open a pull request with `gh pr create --base <detected-branch>`.
+8. **Cleanup**: If the diff was empty (everything skipped), delete the feature branch.
 
-## Safety Features
+## Output streams
 
-- All changes on feature branches (never commits to main)
-- Validates GitHub CLI authentication before starting
-- Uses semantic versioning to prevent downgrades
-- Only updates existing packages (never adds new ones)
-- Dual-phase installation catches compatibility issues early
-- Creates PRs for review (no auto-merge)
-- One repository failure doesn't stop others
-- Automatic branch cleanup when nothing changes
+- **stdout**: machine-readable output only (the JSON summary when `--json` is set; completion scripts; `config get`/`list` output).
+- **stderr**: human-readable progress, warnings, and errors. Safe to discard in scripts (`2>/dev/null`).
 
-## Output
+## Safety
 
-**Color codes:**
+- Refuses to touch repos with uncommitted changes unless you pass `--reset-hard`.
+- All changes land on a feature branch; the tool never commits to your base branch.
+- Validates `gh auth status` before doing any work; exits 3 with a hint if not authenticated.
+- Per-repo failures are isolated — the summary reports which repos succeeded, failed, and were skipped.
+- Arguments (package names, version strings, PR titles, PR bodies) are passed to subprocesses as argv arrays, never spliced into shell strings — shell-injection-safe.
+- `--dry-run` emits `[dry-run] Would run: …` lines for every mutating operation that would have executed.
 
-- Blue: Informational
-- Green: Success
-- Yellow: Warnings/skips
-- Red: Errors
-- Cyan: Section headers
+## Migrating from 1.x
 
-**Common messages:**
+`v2.0.0` is a breaking release. Most changes are flag layout and exit codes; the core upgrade workflow is unchanged.
 
-- `"Skipping [package]: Not found in package.json"` - Package doesn't exist, continuing with others
-- `"Skipping [package]: Current version X is already >= Y"` - Already up-to-date
-- `"No changes detected..."` - All packages skipped, branch cleaned up
+| 1.x form                                         | 2.0.0 form                                                           |
+| ------------------------------------------------ | -------------------------------------------------------------------- |
+| `batch-upgrade-npm -p react -v ^18.0.0 -r ./app` | `batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./app`     |
+| `batch-upgrade-npm -p react -v ^18.0.0 -r ./app` | (legacy form still works with a deprecation warning until 3.0)       |
+| (always-on confirmation)                         | `--yes` / `CI=true` / non-TTY auto-confirms; otherwise still prompts |
+| (silently runs `git reset --hard`)               | Aborts with exit 5; pass `--reset-hard` to opt in                    |
+| `-v` was `--versions`                            | `-v` is now `--verbose`; use long-only `--versions`                  |
+| Hardcoded `main` base branch                     | Auto-detected per-repo; override with `-b/--base`                    |
+| Exit codes 0/1 only                              | 0/1/2/3/4/5 — see Exit codes table above                             |
+| All output to stdout                             | Progress on stderr; data on stdout                                   |
+| No JSON, no env vars, no completion              | `--json`, `BATCH_UPGRADE_*` env vars, `completion <shell>`           |
+| Node.js 14+                                      | Node.js 18+                                                          |
 
-## Troubleshooting
+The two changes most likely to break existing scripts:
 
-| Issue                                       | Solution                                         |
-| ------------------------------------------- | ------------------------------------------------ |
-| "You are not logged into GitHub CLI"        | Run `gh auth login`                              |
-| "Could not switch to main branch"           | Ensure repo has 'main' branch (not 'master')     |
-| "Installation failed"                       | Check package compatibility, network, disk space |
-| "Version count doesn't match package count" | Provide one version per package in same order    |
-| "Repository path not found"                 | Verify paths are relative to current directory   |
-
-## Best Practices
-
-- Ensure target repos are clean with no pending changes
-- Run from parent directory containing all repositories
-- Use `^` for minor/patch updates, `~` for patch-only, exact for critical deps
-- Review PRs promptly to avoid merge conflicts
-- Test in CI/CD before merging
+1. **`-v` is no longer `--versions`.** A `sed -i 's/ -v / --versions /g' your-ci-script.sh` will fix scripts.
+2. **Confirmation now requires `--yes` (or `CI=true`).** Existing CI runs that piped `y` to stdin should now use `--yes`.
 
 ## License
 
@@ -166,4 +185,4 @@ MIT
 ## Links
 
 - [npm Package](https://www.npmjs.com/package/batch-upgrade-npm-packages)
-- [GitHub Repository](https://github.com/anthropics/batch-upgrade-npm-packages)
+- [Changelog](./CHANGELOG.md)
