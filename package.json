@@ -1,21 +1,33 @@
 {
   "name": "batch-upgrade-npm-packages",
-  "version": "2.0.0",
+  "version": "3.0.0",
+  "type": "module",
   "description": "A CLI tool to upgrade npm packages across multiple repositories with automatic PR creation",
-  "main": "lib/index.js",
+  "main": "dist/lib/index.js",
+  "types": "dist/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
-    "batch-upgrade-npm": "bin/cli.js"
+    "batch-upgrade-npm": "dist/bin/cli.js"
   },
   "scripts": {
-    "test": "jest",
-    "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration",
-    "test:watch": "jest --watch",
-    "test:coverage": "c8 jest",
-    "lint": "eslint bin lib __tests__",
-    "lint:fix": "eslint --fix bin lib __tests__",
+    "build": "tsc && node scripts/post-build.mjs",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest",
+    "test:coverage": "c8 vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "npm",
@@ -38,8 +50,7 @@
   },
   "homepage": "https://github.com/johnnyshankman/batch-upgrade-npm-packages#readme",
   "files": [
-    "bin/",
-    "lib/",
+    "dist/",
     "README.md",
     "CHANGELOG.md",
     "MIGRATING.md",
@@ -53,18 +64,24 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "chalk": "^4.1.2",
-    "commander": "^9.4.1",
-    "execa": "^5.1.1",
-    "inquirer": "^8.2.5",
-    "ora": "^5.4.1",
-    "semver": "^7.3.8"
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "execa": "^9.5.0",
+    "inquirer": "^12.0.0",
+    "ora": "^9.0.0",
+    "semver": "^7.6.0"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
+    "@eslint/js": "^9.10.0",
+    "@types/node": "^20.14.0",
+    "@types/semver": "^7.5.8",
     "c8": "^11.0.0",
-    "eslint": "^8.57.1",
-    "jest": "^30.0.3",
-    "prettier": "^3.8.3"
+    "eslint": "^9.10.0",
+    "globals": "^15.9.0",
+    "prettier": "^3.8.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.7.0",
+    "vitest": "^2.1.0"
   }
 }

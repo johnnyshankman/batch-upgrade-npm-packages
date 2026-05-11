@@ -1,19 +1,39 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 
-function sh(cmd, cwd) {
+function sh(cmd: string, cwd: string): string {
   return execSync(cmd, { cwd, stdio: 'pipe' }).toString();
 }
 
-function makeRepo({
+export interface MakeRepoOptions {
+  packageJson?: Record<string, unknown>;
+  branch?: string;
+  dirty?: boolean;
+  withBareRemote?: boolean;
+  extraFiles?: Record<string, string>;
+}
+
+export interface RepoFixture {
+  root: string;
+  dir: string;
+  remoteDir: string | null;
+  branch: string;
+  headSha: string;
+  cleanup(): void;
+  headNow(): string;
+  status(): string;
+  readPackageJson(): { dependencies?: Record<string, string>; [k: string]: unknown };
+}
+
+export function makeRepo({
   packageJson = { name: 'fixture', version: '1.0.0', dependencies: { react: '^17.0.0' } },
   branch = 'main',
   dirty = false,
   withBareRemote = true,
   extraFiles = {},
-} = {}) {
+}: MakeRepoOptions = {}): RepoFixture {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bu-fixture-'));
   const repoDir = path.join(root, 'repo');
   const remoteDir = path.join(root, 'remote.git');
@@ -29,7 +49,11 @@ function makeRepo({
   fs.writeFileSync(
     path.join(repoDir, 'package-lock.json'),
     JSON.stringify(
-      { name: packageJson.name, version: packageJson.version, lockfileVersion: 2 },
+      {
+        name: (packageJson['name'] as string) ?? 'fixture',
+        version: (packageJson['version'] as string) ?? '1.0.0',
+        lockfileVersion: 2,
+      },
       null,
       2
     ) + '\n'
@@ -61,19 +85,20 @@ function makeRepo({
     remoteDir: withBareRemote ? remoteDir : null,
     branch,
     headSha,
-    cleanup() {
+    cleanup(): void {
       fs.rmSync(root, { recursive: true, force: true });
     },
-    headNow() {
+    headNow(): string {
       return sh('git rev-parse HEAD', repoDir).trim();
     },
-    status() {
+    status(): string {
       return sh('git status --porcelain', repoDir);
     },
-    readPackageJson() {
-      return JSON.parse(fs.readFileSync(path.join(repoDir, 'package.json'), 'utf8'));
+    readPackageJson(): { dependencies?: Record<string, string>; [k: string]: unknown } {
+      return JSON.parse(fs.readFileSync(path.join(repoDir, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>;
+        [k: string]: unknown;
+      };
     },
   };
 }
-
-module.exports = { makeRepo };

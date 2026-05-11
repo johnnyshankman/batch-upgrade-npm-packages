@@ -1,11 +1,31 @@
-const inquirer = require('inquirer');
-const chalk = require('chalk');
-const ora = require('ora');
-const { updatePackages } = require('../index');
-const log = require('../log');
-const { CODES, CliError } = require('../exit-codes');
+import type { Command } from 'commander';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import ora from 'ora';
+import { updatePackages } from '../index.js';
+import * as log from '../log.js';
+import { CODES, CliError } from '../exit-codes.js';
 
-function envList(name) {
+interface UpgradeOptions {
+  packages?: string[];
+  versions?: string[];
+  repos?: string[];
+  base?: string;
+  interactive?: boolean;
+  yes?: boolean;
+  resetHard?: boolean;
+  dryRun?: boolean;
+  json?: boolean;
+}
+
+interface GlobalOptions {
+  quiet?: boolean;
+  verbose?: boolean;
+  debug?: boolean;
+  color?: boolean;
+}
+
+function envList(name: string): string[] | undefined {
   const raw = process.env[name];
   if (!raw) return undefined;
   return raw.split(/\s+/).filter(Boolean);
@@ -15,18 +35,18 @@ const envDefaults = {
   packages: envList('BATCH_UPGRADE_PACKAGES'),
   versions: envList('BATCH_UPGRADE_VERSIONS'),
   repos: envList('BATCH_UPGRADE_REPOS'),
-  baseBranch: process.env.BATCH_UPGRADE_BASE_BRANCH || undefined,
-  yes: process.env.BATCH_UPGRADE_YES === 'true' ? true : undefined,
+  baseBranch: process.env['BATCH_UPGRADE_BASE_BRANCH'] || undefined,
+  yes: process.env['BATCH_UPGRADE_YES'] === 'true' ? true : undefined,
 };
 
-function shouldAutoConfirm(options) {
+function shouldAutoConfirm(options: UpgradeOptions): { auto: boolean; reason?: string } {
   if (options.yes) return { auto: true, reason: '--yes' };
-  if (process.env.CI === 'true') return { auto: true, reason: 'CI=true' };
+  if (process.env['CI'] === 'true') return { auto: true, reason: 'CI=true' };
   if (!process.stdin.isTTY) return { auto: true, reason: 'non-TTY stdin' };
   return { auto: false };
 }
 
-module.exports = function registerUpgrade(program) {
+export default function registerUpgrade(program: Command): void {
   const cmd = program
     .command('upgrade')
     .description('Update packages across one or more repositories and open PRs')
@@ -63,8 +83,8 @@ module.exports = function registerUpgrade(program) {
     .option('-n, --dry-run', 'preview changes without modifying any repository')
     .option('--json', 'emit machine-readable JSON summary to stdout');
 
-  cmd.action(async (options) => {
-    const globalOpts = program.opts();
+  cmd.action(async (options: UpgradeOptions) => {
+    const globalOpts = program.opts<GlobalOptions>();
     if (globalOpts.quiet && (globalOpts.verbose || globalOpts.debug)) {
       process.stderr.write(
         chalk.red('Error: --quiet is mutually exclusive with --verbose and --debug.\n')
@@ -81,9 +101,9 @@ module.exports = function registerUpgrade(program) {
       json: options.json === true,
     });
 
-    let packages = options.packages || [];
-    let versions = options.versions || [];
-    let repos = options.repos || [];
+    let packages = options.packages ?? [];
+    let versions = options.versions ?? [];
+    let repos = options.repos ?? [];
 
     const hasAllRequiredArgs = packages.length && versions.length && repos.length;
     const interactive = options.interactive || !hasAllRequiredArgs;
@@ -106,22 +126,22 @@ module.exports = function registerUpgrade(program) {
       log.info(chalk.cyan('Batch NPM Package Upgrader'));
       log.info(chalk.cyan('========================='));
 
-      const answers = await inquirer.prompt([
+      const answers = (await inquirer.prompt([
         {
           type: 'input',
           name: 'packages',
           message: 'Enter packages to update (space-separated):',
           when: !packages.length,
-          filter: (input) => input.split(' ').filter(Boolean),
+          filter: (input: string): string[] => input.split(' ').filter(Boolean),
         },
         {
           type: 'input',
           name: 'versions',
           message: 'Enter version ranges (space-separated, matching the order of packages):',
           when: !versions.length,
-          filter: (input) => input.split(' ').filter(Boolean),
-          validate: (input, partial) => {
-            const pkgs = packages.length ? packages : partial.packages;
+          filter: (input: string): string[] => input.split(' ').filter(Boolean),
+          validate: (input: string[], partial: { packages?: string[] }): true | string => {
+            const pkgs = packages.length ? packages : (partial.packages ?? []);
             return input.length === pkgs.length
               ? true
               : `Number of versions (${input.length}) must match number of packages (${pkgs.length})`;
@@ -132,13 +152,13 @@ module.exports = function registerUpgrade(program) {
           name: 'repos',
           message: 'Enter repository paths (space-separated):',
           when: !repos.length,
-          filter: (input) => input.split(' ').filter(Boolean),
+          filter: (input: string): string[] => input.split(' ').filter(Boolean),
         },
-      ]);
+      ])) as { packages?: string[]; versions?: string[]; repos?: string[] };
 
-      packages = packages.length ? packages : answers.packages;
-      versions = versions.length ? versions : answers.versions;
-      repos = repos.length ? repos : answers.repos;
+      packages = packages.length ? packages : (answers.packages ?? []);
+      versions = versions.length ? versions : (answers.versions ?? []);
+      repos = repos.length ? repos : (answers.repos ?? []);
     }
 
     if (packages.length !== versions.length) {
@@ -161,7 +181,7 @@ module.exports = function registerUpgrade(program) {
 
     log.info(chalk.cyan('\nUpgrading packages:'));
     for (let i = 0; i < packages.length; i++) {
-      log.info(chalk.green(`  ${packages[i]} → ${versions[i]}`));
+      log.info(chalk.green(`  ${packages[i]!} → ${versions[i]!}`));
     }
     log.info(chalk.cyan('\nIn repositories:'));
     for (const repo of repos) {
@@ -172,14 +192,14 @@ module.exports = function registerUpgrade(program) {
     if (auto.auto) {
       log.warn(chalk.yellow(`Auto-confirmed (${auto.reason}).`));
     } else {
-      const { confirm } = await inquirer.prompt([
+      const { confirm } = (await inquirer.prompt([
         {
           type: 'confirm',
           name: 'confirm',
           message: 'Do you want to proceed with the upgrade?',
           default: false,
         },
-      ]);
+      ])) as { confirm: boolean };
       if (!confirm) {
         log.warn(chalk.yellow('Operation cancelled.'));
         process.exit(0);
@@ -195,20 +215,22 @@ module.exports = function registerUpgrade(program) {
         versions,
         repos,
         resetHard: options.resetHard === true,
-        baseBranch: options.base || null,
+        baseBranch: options.base ?? null,
       });
       if (spinner) spinner.succeed('Package update process completed successfully.');
       if (log.isJson()) {
         process.stdout.write(JSON.stringify(result) + '\n');
       }
       process.exit(result.summary.failed > 0 ? CODES.RUNTIME : CODES.SUCCESS);
-    } catch (error) {
-      if (spinner) spinner.fail(`Error: ${error.message}`);
-      else log.error(chalk.red(`Error: ${error.message}`));
-      if (error instanceof CliError && error.hint) {
-        log.error(chalk.red('  → Try: ' + error.hint));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (spinner) spinner.fail(`Error: ${message}`);
+      else log.error(chalk.red(`Error: ${message}`));
+      if (err instanceof CliError && err.hint) {
+        log.error(chalk.red('  → Try: ' + err.hint));
       }
-      process.exit(typeof error.code === 'number' ? error.code : CODES.RUNTIME);
+      const code = err instanceof CliError ? err.code : CODES.RUNTIME;
+      process.exit(code);
     }
   });
 
@@ -226,4 +248,4 @@ Examples:
     $ CI=true batch-upgrade-npm upgrade --json -p react --versions ^18.0.0 -r ./app > result.json
 `
   );
-};
+}

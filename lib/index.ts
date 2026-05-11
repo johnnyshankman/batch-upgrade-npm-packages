@@ -1,13 +1,73 @@
-const fs = require('fs');
-const path = require('path');
-const semver = require('semver');
-const chalk = require('chalk');
-const { runCmd } = require('./runCmd');
-const log = require('./log');
-const { CODES, CliError } = require('./exit-codes');
-const { detectBaseBranch } = require('./detectBaseBranch');
+import fs from 'node:fs';
+import path from 'node:path';
+import semver from 'semver';
+import chalk from 'chalk';
+import { runCmd } from './runCmd.js';
+import * as log from './log.js';
+import { CODES, CliError } from './exit-codes.js';
+import { detectBaseBranch } from './detectBaseBranch.js';
 
-async function checkGhLogin() {
+export type UpdateSection = 'dependencies' | 'devDependencies' | 'peerDependencies';
+
+export interface PackageUpdate {
+  package: string;
+  fromVersion: string;
+  toVersion: string;
+  section: UpdateSection;
+}
+
+export interface RepositoryResult {
+  repo: string;
+  status: 'success' | 'failed' | 'skipped';
+  branch: string | null;
+  baseBranch: string | null;
+  prUrl: string | null;
+  updates: PackageUpdate[];
+  error: string | null;
+  errorCode: string | null;
+  dryRun: boolean;
+}
+
+export interface UpdateSummary {
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface UpdatePackagesResult {
+  summary: UpdateSummary;
+  repositories: RepositoryResult[];
+  dryRun: boolean;
+}
+
+export interface UpdatePackagesOptions {
+  packages: string[];
+  versions: string[];
+  repos: string[];
+  resetHard?: boolean;
+  baseBranch?: string | null;
+}
+
+interface UpdateRepoOptions {
+  repoPath: string;
+  packages: string[];
+  versions: string[];
+  branchName: string;
+  prTitle: string;
+  prBody: string;
+  resetHard?: boolean;
+  baseBranchOverride?: string | null;
+}
+
+interface PackageJsonShape {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+export async function checkGhLogin(): Promise<boolean> {
   log.info(chalk.blue("Checking if you're logged into GitHub CLI..."));
   const r = await runCmd('gh', ['auth', 'status']);
   if (r.success) {
@@ -20,49 +80,64 @@ async function checkGhLogin() {
   return false;
 }
 
-function packageExists(pkg, packageJsonPath = 'package.json') {
+export function packageExists(pkg: string, packageJsonPath: string = 'package.json'): boolean {
   if (!fs.existsSync(packageJsonPath)) return false;
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    return (
-      (packageJson.dependencies && packageJson.dependencies[pkg]) ||
-      (packageJson.devDependencies && packageJson.devDependencies[pkg]) ||
-      (packageJson.peerDependencies && packageJson.peerDependencies[pkg])
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as PackageJsonShape;
+    return Boolean(
+      packageJson.dependencies?.[pkg] ||
+      packageJson.devDependencies?.[pkg] ||
+      packageJson.peerDependencies?.[pkg]
     );
-  } catch (error) {
-    log.error(chalk.red(`Error checking if package ${pkg} exists: ${error.message}`));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.error(chalk.red(`Error checking if package ${pkg} exists: ${message}`));
     return false;
   }
 }
 
-function getCurrentVersion(pkg, packageJsonPath = 'package.json') {
+export function getCurrentVersion(
+  pkg: string,
+  packageJsonPath: string = 'package.json'
+): { section: UpdateSection; version: string } | null {
   if (!fs.existsSync(packageJsonPath)) return null;
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    const sections = ['dependencies', 'devDependencies', 'peerDependencies'];
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as PackageJsonShape;
+    const sections = ['dependencies', 'devDependencies', 'peerDependencies'] as const;
     for (const section of sections) {
-      if (packageJson[section] && packageJson[section][pkg]) {
-        return { section, version: packageJson[section][pkg] };
+      const bucket = packageJson[section];
+      if (bucket && typeof bucket === 'object' && pkg in bucket) {
+        const version = (bucket as Record<string, string>)[pkg];
+        if (typeof version === 'string') {
+          return { section, version };
+        }
       }
     }
     return null;
-  } catch (error) {
-    log.error(chalk.red(`Error getting current version for ${pkg}: ${error.message}`));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.error(chalk.red(`Error getting current version for ${pkg}: ${message}`));
     return null;
   }
 }
 
-function versionIsHigherOrEqual(current, target) {
+export function versionIsHigherOrEqual(current: string, target: string): boolean {
   const cleanCurrent = current.replace(/^[\^~=]/, '');
   const cleanTarget = target.replace(/^[\^~=]/, '');
   return semver.gte(cleanCurrent, cleanTarget);
 }
 
-function updatePackageJson(pkg, section, version, packageJsonPath = 'package.json') {
+export function updatePackageJson(
+  pkg: string,
+  section: UpdateSection,
+  version: string,
+  packageJsonPath: string = 'package.json'
+): boolean {
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    if (packageJson[section] && packageJson[section][pkg] !== undefined) {
-      packageJson[section][pkg] = version;
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')) as PackageJsonShape;
+    const bucket = packageJson[section];
+    if (bucket && typeof bucket === 'object' && pkg in bucket) {
+      (bucket as Record<string, string>)[pkg] = version;
       if (log.isDryRun()) {
         log.dryRun(`Would write ${packageJsonPath}: ${pkg}@${version} in ${section}`);
         return true;
@@ -71,13 +146,21 @@ function updatePackageJson(pkg, section, version, packageJsonPath = 'package.jso
       return true;
     }
     return false;
-  } catch (error) {
-    log.error(chalk.red(`Error updating package.json for ${pkg}: ${error.message}`));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.error(chalk.red(`Error updating package.json for ${pkg}: ${message}`));
     return false;
   }
 }
 
-async function checkWorkingTreeClean(repoCwd) {
+export interface WorkingTreeCheck {
+  clean: boolean;
+  reason?: 'git-status-failed';
+  stderr?: string;
+  porcelain?: string;
+}
+
+export async function checkWorkingTreeClean(repoCwd: string): Promise<WorkingTreeCheck> {
   const r = await runCmd('git', ['status', '--porcelain'], { cwd: repoCwd });
   if (!r.success) {
     return { clean: false, reason: 'git-status-failed', stderr: r.stderr };
@@ -85,7 +168,7 @@ async function checkWorkingTreeClean(repoCwd) {
   return { clean: r.stdout.trim() === '', porcelain: r.stdout };
 }
 
-async function updateRepo(options) {
+export async function updateRepo(options: UpdateRepoOptions): Promise<RepositoryResult | false> {
   const {
     repoPath,
     packages,
@@ -98,7 +181,7 @@ async function updateRepo(options) {
   } = options;
   const repoCwd = path.resolve(repoPath);
   const packageJsonPath = path.join(repoCwd, 'package.json');
-  const result = {
+  const result: RepositoryResult = {
     repo: repoPath,
     status: 'failed',
     branch: branchName,
@@ -141,7 +224,7 @@ async function updateRepo(options) {
       }
     }
 
-    const baseBranch = await detectBaseBranch(repoCwd, baseBranchOverride);
+    const baseBranch = await detectBaseBranch(repoCwd, baseBranchOverride ?? undefined);
     result.baseBranch = baseBranch;
 
     log.info(chalk.blue(`Switching to ${baseBranch} branch...`));
@@ -207,8 +290,8 @@ async function updateRepo(options) {
       log.info(chalk.blue('Analyzing package versions in package.json...'));
 
       for (let i = 0; i < packages.length; i++) {
-        const pkg = packages[i];
-        const ver = versions[i];
+        const pkg = packages[i]!;
+        const ver = versions[i]!;
 
         if (!packageExists(pkg, packageJsonPath)) {
           log.warn(chalk.yellow(`  - Skipping ${pkg}: Not found in package.json`));
@@ -275,7 +358,8 @@ async function updateRepo(options) {
             fs.rmSync(nodeModulesPath, { recursive: true, force: true });
           }
         } catch (err) {
-          log.error(chalk.red(`Error removing node_modules: ${err.message}`));
+          const message = err instanceof Error ? err.message : String(err);
+          log.error(chalk.red(`Error removing node_modules: ${message}`));
         }
 
         log.info(
@@ -307,7 +391,8 @@ async function updateRepo(options) {
             fs.rmSync(nodeModulesPath, { recursive: true, force: true });
           }
         } catch (err) {
-          log.error(chalk.red(`Error removing node_modules: ${err.message}`));
+          const message = err instanceof Error ? err.message : String(err);
+          log.error(chalk.red(`Error removing node_modules: ${message}`));
         }
 
         log.info(chalk.blue('Verifying package installation with regular npm install...'));
@@ -328,7 +413,7 @@ async function updateRepo(options) {
       }
     }
 
-    let hasChanges;
+    let hasChanges: boolean;
     if (log.isDryRun()) {
       hasChanges = updateSuccess;
     } else {
@@ -347,9 +432,10 @@ async function updateRepo(options) {
       let updatedPrBody = 'This PR updates the following npm packages:\n\n';
 
       for (let i = 0; i < result.updates.length; i++) {
+        const update = result.updates[i]!;
         if (i > 0) updatedPackageList += ', ';
-        updatedPackageList += `${result.updates[i].package}@${result.updates[i].toVersion}`;
-        updatedPrBody += `- ${result.updates[i].package} to ${result.updates[i].toVersion}\n`;
+        updatedPackageList += `${update.package}@${update.toVersion}`;
+        updatedPrBody += `- ${update.package} to ${update.toVersion}\n`;
       }
       updatedPrBody += '\nAutomatically generated by batch-upgrade-npm-packages.';
 
@@ -423,16 +509,19 @@ async function updateRepo(options) {
 
     log.success(chalk.green(`Completed processing ${repoPath}`));
     return result;
-  } catch (error) {
-    if (error instanceof CliError) throw error;
-    log.error(chalk.red(`Error processing repository ${repoPath}: ${error.message}`));
-    result.error = error.message;
+  } catch (err) {
+    if (err instanceof CliError) throw err;
+    const message = err instanceof Error ? err.message : String(err);
+    log.error(chalk.red(`Error processing repository ${repoPath}: ${message}`));
+    result.error = message;
     result.errorCode = 'UNKNOWN';
     return result;
   }
 }
 
-async function updatePackages(options) {
+export async function updatePackages(
+  options: UpdatePackagesOptions
+): Promise<UpdatePackagesResult> {
   const { packages, versions, repos, resetHard = false, baseBranch = null } = options;
 
   if (!(await checkGhLogin())) {
@@ -467,17 +556,17 @@ async function updatePackages(options) {
   let packageList = '';
   for (let i = 0; i < packages.length; i++) {
     if (i > 0) packageList += ', ';
-    packageList += `${packages[i]}@${versions[i]}`;
+    packageList += `${packages[i]!}@${versions[i]!}`;
   }
   const prTitle = `Update npm packages: ${packageList}`;
 
   let prBody = 'This PR updates the following npm packages:\n\n';
   for (let i = 0; i < packages.length; i++) {
-    prBody += `- ${packages[i]} to ${versions[i]}\n`;
+    prBody += `- ${packages[i]!} to ${versions[i]!}\n`;
   }
   prBody += '\nAutomatically generated by batch-upgrade-npm-packages.';
 
-  const repoResults = [];
+  const repoResults: RepositoryResult[] = [];
   for (const repo of repos) {
     const branchName = `update-packages-${timestamp}`;
     try {
@@ -491,17 +580,34 @@ async function updatePackages(options) {
         resetHard,
         baseBranchOverride: baseBranch,
       });
-      repoResults.push(repoResult);
+      if (repoResult !== false) {
+        repoResults.push(repoResult);
+      } else {
+        repoResults.push({
+          repo,
+          status: 'failed',
+          branch: branchName,
+          baseBranch: null,
+          prUrl: null,
+          updates: [],
+          error: 'git reset --hard failed',
+          errorCode: 'GIT_RESET_FAILED',
+          dryRun: log.isDryRun(),
+        });
+      }
     } catch (err) {
       if (err instanceof CliError && err.code === CODES.DIRTY) throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      const errorCode = err instanceof CliError ? `CLI_ERROR_${String(err.code)}` : 'UNKNOWN';
       repoResults.push({
         repo,
         status: 'failed',
         branch: null,
+        baseBranch: null,
         prUrl: null,
         updates: [],
-        error: err.message,
-        errorCode: err instanceof CliError ? `CLI_ERROR_${err.code}` : 'UNKNOWN',
+        error: message,
+        errorCode,
         dryRun: log.isDryRun(),
       });
     }
@@ -521,7 +627,7 @@ async function updatePackages(options) {
     log.info(`${r.repo}: ${label}`);
   }
 
-  const summary = {
+  const summary: UpdateSummary = {
     total: repoResults.length,
     succeeded: repoResults.filter((r) => r.status === 'success').length,
     failed: repoResults.filter((r) => r.status === 'failed').length,
@@ -534,14 +640,3 @@ async function updatePackages(options) {
     dryRun: log.isDryRun(),
   };
 }
-
-module.exports = {
-  updatePackages,
-  checkGhLogin,
-  packageExists,
-  getCurrentVersion,
-  versionIsHigherOrEqual,
-  updatePackageJson,
-  updateRepo,
-  checkWorkingTreeClean,
-};

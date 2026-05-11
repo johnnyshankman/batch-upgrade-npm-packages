@@ -1,35 +1,35 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import { program } from 'commander';
+import type { CommanderError } from 'commander';
+import chalk from 'chalk';
+import * as log from '../lib/log.js';
+import { CODES, CliError } from '../lib/exit-codes.js';
+import registerUpgrade from '../lib/commands/upgrade.js';
+import registerConfig from '../lib/commands/config.js';
+import registerCompletion from '../lib/commands/completion.js';
 
-const { program } = require('commander');
-const chalk = require('chalk');
-const pkg = require('../package.json');
-const log = require('../lib/log');
-const { CODES, CliError } = require('../lib/exit-codes');
-
-const KNOWN_SUBCOMMANDS = new Set(['upgrade', 'config', 'completion', 'help']);
-
-function applyLegacyShim() {
-  const argv2 = process.argv[2];
-  if (!argv2) return;
-  if (KNOWN_SUBCOMMANDS.has(argv2)) return;
-  if (['-h', '--help', '-V', '--version'].includes(argv2)) return;
-  if (argv2.startsWith('-')) {
-    process.stderr.write(
-      chalk.yellow(
-        'Deprecation: invoke as `batch-upgrade-npm upgrade …`. Legacy flag-only form will be removed in 3.0.\n'
-      )
-    );
-    process.argv.splice(2, 0, 'upgrade');
+function readPkgVersion(): string {
+  const candidates = [
+    new URL('../package.json', import.meta.url),
+    new URL('../../package.json', import.meta.url),
+  ];
+  for (const u of candidates) {
+    try {
+      const parsed = JSON.parse(readFileSync(u, 'utf8')) as { version: string };
+      if (typeof parsed.version === 'string') return parsed.version;
+    } catch {
+      // try next candidate
+    }
   }
+  throw new Error('Could not locate package.json');
 }
-
-applyLegacyShim();
 
 program
   .name('batch-upgrade-npm')
   .usage('<command> [options]')
   .description('A CLI tool to upgrade npm packages across multiple repositories')
-  .version(pkg.version)
+  .version(readPkgVersion())
   .option('-q, --quiet', 'suppress non-error output')
   .option('-v, --verbose', 'verbose output (includes child process output)')
   .option('--debug', 'debug output (alias for --verbose with extra detail)')
@@ -67,21 +67,23 @@ Exit codes:
 Run 'batch-upgrade-npm <command> --help' for command-specific options.
 `
   )
-  .exitOverride((err) => {
+  .exitOverride((err: CommanderError) => {
     if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
       process.exit(0);
     }
     process.exit(2);
   });
 
-require('../lib/commands/upgrade')(program);
-require('../lib/commands/config')(program);
-require('../lib/commands/completion')(program);
+registerUpgrade(program);
+registerConfig(program);
+registerCompletion(program);
 
-program.parseAsync(process.argv).catch((error) => {
-  log.error(chalk.red(`Error: ${error.message}`));
-  if (error instanceof CliError && error.hint) {
-    log.error(chalk.red('  → Try: ' + error.hint));
+program.parseAsync(process.argv).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  log.error(chalk.red(`Error: ${message}`));
+  if (err instanceof CliError && err.hint) {
+    log.error(chalk.red('  → Try: ' + err.hint));
   }
-  process.exit(typeof error.code === 'number' ? error.code : CODES.RUNTIME);
+  const code = err instanceof CliError ? err.code : CODES.RUNTIME;
+  process.exit(code);
 });

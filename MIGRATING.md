@@ -1,3 +1,73 @@
+# Migrating from 2.x to 3.0
+
+`batch-upgrade-npm-packages` v3.0 is a tooling-and-ESM release. The CLI surface
+(flags, exit codes, `--json` schema, `--help` text) is unchanged. Two breaking
+changes affect specific use cases.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the full list of changes.
+
+## At a glance
+
+| 2.x form                                                           | 3.0 form                                                      |
+| ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `const { updatePackages } = require('batch-upgrade-npm-packages')` | `import { updatePackages } from 'batch-upgrade-npm-packages'` |
+| `batch-upgrade-npm -p react --versions ^18 -r ./app` (legacy shim) | `batch-upgrade-npm upgrade -p react --versions ^18 -r ./app`  |
+| JavaScript source                                                  | TypeScript source (`.d.ts` types published)                   |
+
+## Breaking change 1: ESM-only library API
+
+The package now sets `"type": "module"` and ships ESM only. If you import the
+library API from Node.js code:
+
+```diff
+- const { updatePackages } = require('batch-upgrade-npm-packages');
++ import { updatePackages } from 'batch-upgrade-npm-packages';
+```
+
+Your importing module must be ESM (either `"type": "module"` in its
+`package.json`, an `.mjs` extension, or running in an ESM-capable bundler).
+TypeScript consumers gain typed result objects:
+
+```ts
+import { updatePackages } from 'batch-upgrade-npm-packages';
+import type { UpdatePackagesResult } from 'batch-upgrade-npm-packages';
+
+const result: UpdatePackagesResult = await updatePackages({
+  packages: ['react'],
+  versions: ['^18.0.0'],
+  repos: ['./web', './admin'],
+});
+```
+
+The CLI binary (`batch-upgrade-npm`) is unaffected by this change. Use it
+exactly as you did in 2.0.
+
+## Breaking change 2: Legacy flag-only CLI form removed
+
+The 2.0 CHANGELOG warned that bare-flag invocation would be removed in 3.0.
+That removal is now done.
+
+```diff
+- batch-upgrade-npm -p react --versions ^18.0.0 -r ./app
++ batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./app
+```
+
+If you didn't already migrate to the `upgrade` subcommand in 2.0, your script
+will now exit 2 with `error: unknown option '-p'`. The fix is to add `upgrade`
+as the first positional argument.
+
+## Non-breaking infrastructure changes
+
+- The package is now written in TypeScript (`bin/cli.ts`, `lib/**/*.ts`).
+  Consumers don't need TS — the published `dist/` is plain ESM JS.
+- Tests use Vitest; coverage is via `@vitest/coverage-v8`. `npm test` still
+  runs directly from the source — no build step required.
+- ESLint flat config (`eslint.config.js`); `.eslintrc.json` is gone.
+- Dependency majors bumped to their ESM-only releases (chalk 5, execa 9,
+  inquirer 12, ora 9, commander 12). No observable behavior change.
+
+---
+
 # Migrating from 1.x to 2.0
 
 `batch-upgrade-npm-packages` v2.0 is a breaking release. Most changes are flag layout and exit codes; the core upgrade workflow is unchanged.

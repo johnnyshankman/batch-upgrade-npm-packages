@@ -1,7 +1,8 @@
-const { runCli } = require('./helpers/runCli');
+import { describe, it, expect } from 'vitest';
+import { runCli } from './helpers/runCli.js';
 
 // Snapshot tests for the CLI's user-visible surface (--help, --version structure).
-// Intentional changes require `npm test -- -u` to update.
+// Intentional changes require `vitest run -u` to update.
 
 describe('CLI snapshots', () => {
   it('--help output is stable', async () => {
