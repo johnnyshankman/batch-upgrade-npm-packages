@@ -1,0 +1,19 @@
+module.exports = {
+  projects: [
+    {
+      displayName: 'unit',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/__tests__/*.test.js'],
+      clearMocks: true,
+      resetMocks: true,
+      restoreMocks: true,
+    },
+    {
+      displayName: 'integration',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/__tests__/integration/**/*.test.js'],
+      testTimeout: 30000,
+      maxWorkers: 1,
+    },
+  ],
+};

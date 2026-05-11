@@ -1,131 +1,87 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
-const inquirer = require('inquirer');
 const chalk = require('chalk');
-const ora = require('ora');
-const { updatePackages } = require('../lib/index');
+const pkg = require('../package.json');
+const log = require('../lib/log');
+const { CODES, CliError } = require('../lib/exit-codes');
 
-// Define the program options
-program
-  .name('batch-upgrade-npm')
-  .description('A CLI tool to upgrade npm packages across multiple repositories')
-  .version('1.0.0')
-  .option('-p, --packages <packages...>', 'packages to update (space separated)')
-  .option('-v, --versions <versions...>', 'version ranges (space separated, matching packages order)')
-  .option('-r, --repos <repos...>', 'repository paths (space separated, relative to current directory)')
-  .option('-i, --interactive', 'run in interactive mode (will prompt for input)')
-  .parse(process.argv);
+const KNOWN_SUBCOMMANDS = new Set(['upgrade', 'config', 'completion', 'help']);
 
-// Main function to run the CLI
-async function run() {
-  const options = program.opts();
-  let packages = options.packages || [];
-  let versions = options.versions || [];
-  let repos = options.repos || [];
-
-  // If interactive mode or missing required parameters, prompt for input
-  if (options.interactive || !packages.length || !versions.length || !repos.length) {
-    console.log(chalk.cyan('Batch NPM Package Upgrader'));
-    console.log(chalk.cyan('========================='));
-
-    const answers = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'packages',
-        message: 'Enter packages to update (space-separated):',
-        when: !packages.length,
-        filter: (input) => input.split(' ').filter(Boolean)
-      },
-      {
-        type: 'input',
-        name: 'versions',
-        message: 'Enter version ranges (space-separated, matching the order of packages):',
-        when: !versions.length,
-        filter: (input) => input.split(' ').filter(Boolean),
-        validate: (input, answers) => {
-          const pkgs = packages.length ? packages : answers.packages;
-          return input.length === pkgs.length ?
-            true :
-            `Number of versions (${input.length}) must match number of packages (${pkgs.length})`;
-        }
-      },
-      {
-        type: 'input',
-        name: 'repos',
-        message: 'Enter repository paths (space-separated):',
-        when: !repos.length,
-        filter: (input) => input.split(' ').filter(Boolean)
-      }
-    ]);
-
-    // Merge command line options with interactive answers
-    packages = packages.length ? packages : answers.packages;
-    versions = versions.length ? versions : answers.versions;
-    repos = repos.length ? repos : answers.repos;
-  }
-
-  // Validate requirements
-  if (packages.length !== versions.length) {
-    console.error(chalk.red('Error: Number of packages and versions must match.'));
-    process.exit(1);
-  }
-
-  if (packages.length === 0) {
-    console.error(chalk.red('Error: No packages specified.'));
-    process.exit(1);
-  }
-
-  if (repos.length === 0) {
-    console.error(chalk.red('Error: No repositories specified.'));
-    process.exit(1);
-  }
-
-  // Display what we're going to do
-  console.log(chalk.cyan('\nUpgrading packages:'));
-  for (let i = 0; i < packages.length; i++) {
-    console.log(chalk.green(`  ${packages[i]} → ${versions[i]}`));
-  }
-
-  console.log(chalk.cyan('\nIn repositories:'));
-  for (const repo of repos) {
-    console.log(chalk.green(`  ${repo}`));
-  }
-
-  // Confirm before proceeding
-  const { confirm } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirm',
-      message: 'Do you want to proceed with the upgrade?',
-      default: false
-    }
-  ]);
-
-  if (!confirm) {
-    console.log(chalk.yellow('Operation cancelled.'));
-    process.exit(0);
-  }
-
-  // Start the upgrade process
-  const spinner = ora('Starting package update process...').start();
-
-  try {
-    await updatePackages({
-      packages,
-      versions,
-      repos
-    });
-
-    spinner.succeed('Package update process completed successfully.');
-  } catch (error) {
-    spinner.fail(`Error: ${error.message}`);
-    process.exit(1);
+function applyLegacyShim() {
+  const argv2 = process.argv[2];
+  if (!argv2) return;
+  if (KNOWN_SUBCOMMANDS.has(argv2)) return;
+  if (['-h', '--help', '-V', '--version'].includes(argv2)) return;
+  if (argv2.startsWith('-')) {
+    process.stderr.write(
+      chalk.yellow(
+        'Deprecation: invoke as `batch-upgrade-npm upgrade …`. Legacy flag-only form will be removed in 3.0.\n'
+      )
+    );
+    process.argv.splice(2, 0, 'upgrade');
   }
 }
 
-// Run the CLI
-run().catch(error => {
-  console.error(chalk.red(`Error: ${error.message}`));
-  process.exit(1);
+applyLegacyShim();
+
+program
+  .name('batch-upgrade-npm')
+  .usage('<command> [options]')
+  .description('A CLI tool to upgrade npm packages across multiple repositories')
+  .version(pkg.version)
+  .option('-q, --quiet', 'suppress non-error output')
+  .option('-v, --verbose', 'verbose output (includes child process output)')
+  .option('--debug', 'debug output (alias for --verbose with extra detail)')
+  .option('--no-color', 'disable colorized output (also honors NO_COLOR env)')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  Update one package across multiple repos:
+    $ batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./web ./admin
+
+  Multiple packages, one repo, dry-run preview:
+    $ batch-upgrade-npm upgrade -p lodash axios --versions ^4.17.21 ^1.4.0 -r ./api --dry-run
+
+  JSON summary in CI:
+    $ CI=true batch-upgrade-npm upgrade --json -p react --versions ^18.0.0 -r ./app > result.json
+
+Environment:
+  NO_COLOR=1                    Disable colored output
+  CI=true                       Auto-confirm (skips prompt)
+  BATCH_UPGRADE_PACKAGES        Default for --packages (space-separated)
+  BATCH_UPGRADE_VERSIONS        Default for --versions (space-separated)
+  BATCH_UPGRADE_REPOS           Default for --repos (space-separated)
+  BATCH_UPGRADE_BASE_BRANCH     Default for --base
+  BATCH_UPGRADE_YES=true        Default for --yes
+
+Exit codes:
+  0  Success
+  1  One or more repositories failed
+  2  Usage error (invalid flags or arguments)
+  3  GitHub CLI authentication failure
+  4  Repository or base branch not found
+  5  Dirty working tree (use --reset-hard to override)
+
+Run 'batch-upgrade-npm <command> --help' for command-specific options.
+`
+  )
+  .exitOverride((err) => {
+    if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
+      process.exit(0);
+    }
+    process.exit(2);
+  });
+
+require('../lib/commands/upgrade')(program);
+require('../lib/commands/config')(program);
+require('../lib/commands/completion')(program);
+
+program.parseAsync(process.argv).catch((error) => {
+  log.error(chalk.red(`Error: ${error.message}`));
+  if (error instanceof CliError && error.hint) {
+    log.error(chalk.red('  → Try: ' + error.hint));
+  }
+  process.exit(typeof error.code === 'number' ? error.code : CODES.RUNTIME);
 });

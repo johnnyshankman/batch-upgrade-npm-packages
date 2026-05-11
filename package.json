@@ -1,13 +1,21 @@
 {
   "name": "batch-upgrade-npm-packages",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A CLI tool to upgrade npm packages across multiple repositories with automatic PR creation",
   "main": "lib/index.js",
   "bin": {
     "batch-upgrade-npm": "bin/cli.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:unit": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration",
+    "test:watch": "jest --watch",
+    "test:coverage": "c8 jest",
+    "lint": "eslint bin lib __tests__",
+    "lint:fix": "eslint --fix bin lib __tests__",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "npm",
@@ -22,14 +30,21 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^9.4.1",
-    "inquirer": "^8.2.5",
-    "semver": "^7.3.8",
     "execa": "^5.1.1",
-    "ora": "^5.4.1"
+    "inquirer": "^8.2.5",
+    "ora": "^5.4.1",
+    "semver": "^7.3.8"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "c8": "^11.0.0",
+    "eslint": "^8.57.1",
+    "jest": "^30.0.3",
+    "prettier": "^3.8.3"
   }
 }

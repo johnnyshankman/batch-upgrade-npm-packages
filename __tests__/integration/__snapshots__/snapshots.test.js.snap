@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CLI snapshots --help output is stable 1`] = `
+"Usage: batch-upgrade-npm <command> [options]
+
+A CLI tool to upgrade npm packages across multiple repositories
+
+Options:
+  -V, --version       output the version number
+  -q, --quiet         suppress non-error output
+  -v, --verbose       verbose output (includes child process output)
+  --debug             debug output (alias for --verbose with extra detail)
+  --no-color          disable colorized output (also honors NO_COLOR env)
+  -h, --help          display help for command
+
+Commands:
+  upgrade [options]   Update packages across one or more repositories and open
+                      PRs
+  config              Inspect effective configuration resolved from environment
+                      variables
+  completion <shell>  Print a shell completion script. Supported shells: bash,
+                      zsh, fish
+  help [command]      display help for command
+
+Examples:
+  Update one package across multiple repos:
+    $ batch-upgrade-npm upgrade -p react --versions ^18.0.0 -r ./web ./admin
+
+  Multiple packages, one repo, dry-run preview:
+    $ batch-upgrade-npm upgrade -p lodash axios --versions ^4.17.21 ^1.4.0 -r ./api --dry-run
+
+  JSON summary in CI:
+    $ CI=true batch-upgrade-npm upgrade --json -p react --versions ^18.0.0 -r ./app > result.json
+
+Environment:
+  NO_COLOR=1                    Disable colored output
+  CI=true                       Auto-confirm (skips prompt)
+  BATCH_UPGRADE_PACKAGES        Default for --packages (space-separated)
+  BATCH_UPGRADE_VERSIONS        Default for --versions (space-separated)
+  BATCH_UPGRADE_REPOS           Default for --repos (space-separated)
+  BATCH_UPGRADE_BASE_BRANCH     Default for --base
+  BATCH_UPGRADE_YES=true        Default for --yes
+
+Exit codes:
+  0  Success
+  1  One or more repositories failed
+  2  Usage error (invalid flags or arguments)
+  3  GitHub CLI authentication failure
+  4  Repository or base branch not found
+  5  Dirty working tree (use --reset-hard to override)
+
+Run 'batch-upgrade-npm <command> --help' for command-specific options.
+
+"
+`;
