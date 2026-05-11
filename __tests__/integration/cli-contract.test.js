@@ -224,7 +224,7 @@ describe('CLI contract — logging flags [unlocks: PR3]', () => {
 });
 
 describe('CLI contract — env vars [unlocks: PR7]', () => {
-  it.skip('BATCH_UPGRADE_PACKAGES + _VERSIONS + _REPOS supplies defaults', async () => {
+  it('BATCH_UPGRADE_PACKAGES + _VERSIONS + _REPOS supplies defaults', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
@@ -242,10 +242,30 @@ describe('CLI contract — env vars [unlocks: PR7]', () => {
       mockGh.cleanup();
     }
   });
+
+  it('CLI flag overrides env var', async () => {
+    const mockGh = makeMockGh();
+    const repo = makeRepo();
+    try {
+      const r = await runCli(['--packages', 'react', '--yes', '--dry-run'], {
+        env: {
+          PATH: mockGh.envPath,
+          BATCH_UPGRADE_PACKAGES: 'shouldbeignored',
+          BATCH_UPGRADE_VERSIONS: '^18.0.0',
+          BATCH_UPGRADE_REPOS: repo.dir,
+        },
+      });
+      expect(r.code).toBe(0);
+      expect(r.stderr).not.toMatch(/shouldbeignored/);
+    } finally {
+      repo.cleanup();
+      mockGh.cleanup();
+    }
+  });
 });
 
 describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
-  it.skip('repo with master branch (no main) auto-detects master', async () => {
+  it('repo with master branch (no main) auto-detects master', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo({ branch: 'master' });
     try {
@@ -269,6 +289,47 @@ describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
       repo.cleanup();
       mockGh.cleanup();
     }
+  });
+
+  it('--base override is honored', async () => {
+    const mockGh = makeMockGh();
+    const repo = makeRepo();
+    try {
+      const r = await runCli(
+        [
+          '--packages',
+          'react',
+          '--versions',
+          '^18.0.0',
+          '--repos',
+          repo.dir,
+          '--base',
+          'main',
+          '--yes',
+          '--dry-run',
+          '--json',
+        ],
+        { env: { PATH: mockGh.envPath } }
+      );
+      expect(r.code).toBe(0);
+      const parsed = JSON.parse(r.stdout.trim());
+      expect(parsed.repositories[0].baseBranch).toBe('main');
+    } finally {
+      repo.cleanup();
+      mockGh.cleanup();
+    }
+  });
+});
+
+describe('CLI contract — help text [unlocks: PR7]', () => {
+  it('--help includes Examples / Environment / Exit codes sections', async () => {
+    const r = await runCli(['--help']);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('Examples:');
+    expect(r.stdout).toContain('Environment:');
+    expect(r.stdout).toContain('Exit codes:');
+    expect(r.stdout).toContain('BATCH_UPGRADE_PACKAGES');
+    expect(r.stdout).toContain('NO_COLOR');
   });
 });
 

@@ -9,18 +9,42 @@ const { updatePackages } = require('../lib/index');
 const log = require('../lib/log');
 const { CODES, CliError } = require('../lib/exit-codes');
 
+function envList(name) {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  return raw.split(/\s+/).filter(Boolean);
+}
+
+const envDefaults = {
+  packages: envList('BATCH_UPGRADE_PACKAGES'),
+  versions: envList('BATCH_UPGRADE_VERSIONS'),
+  repos: envList('BATCH_UPGRADE_REPOS'),
+  baseBranch: process.env.BATCH_UPGRADE_BASE_BRANCH || undefined,
+  yes: process.env.BATCH_UPGRADE_YES === 'true' ? true : undefined,
+};
+
 program
   .name('batch-upgrade-npm')
   .description('A CLI tool to upgrade npm packages across multiple repositories')
   .version(pkg.version)
-  .option('-p, --packages <packages...>', 'packages to update (space separated)')
-  .option('--versions <versions...>', 'version ranges (space separated, matching packages order)')
+  .option('-p, --packages <packages...>', 'packages to update (space separated)', envDefaults.packages)
+  .option(
+    '--versions <versions...>',
+    'version ranges (space separated, matching packages order)',
+    envDefaults.versions
+  )
   .option(
     '-r, --repos <repos...>',
-    'repository paths (space separated, relative to current directory)'
+    'repository paths (space separated, relative to current directory)',
+    envDefaults.repos
+  )
+  .option(
+    '-b, --base <branch>',
+    'base branch to update against (auto-detected from origin/HEAD if omitted)',
+    envDefaults.baseBranch
   )
   .option('-i, --interactive', 'run in interactive mode (will prompt for input)')
-  .option('-y, --yes', 'skip confirmation prompt (also implied by CI=true or non-TTY stdin)')
+  .option('-y, --yes', 'skip confirmation prompt (also implied by CI=true or non-TTY stdin)', envDefaults.yes)
   .option(
     '--reset-hard',
     'discard uncommitted changes in target repos before updating (DESTRUCTIVE)'
@@ -31,6 +55,37 @@ program
   .option('-v, --verbose', 'verbose output (includes child process output)')
   .option('--debug', 'debug output (alias for --verbose with extra detail)')
   .option('--no-color', 'disable colorized output (also honors NO_COLOR env)')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  Update one package across multiple repos:
+    $ batch-upgrade-npm -p react --versions ^18.0.0 -r ./web ./admin
+
+  Multiple packages, one repo, dry-run preview:
+    $ batch-upgrade-npm -p lodash axios --versions ^4.17.21 ^1.4.0 -r ./api --dry-run
+
+  JSON summary in CI:
+    $ CI=true batch-upgrade-npm --json -p react --versions ^18.0.0 -r ./app > result.json
+
+Environment:
+  NO_COLOR=1                    Disable colored output
+  CI=true                       Auto-confirm (skips prompt)
+  BATCH_UPGRADE_PACKAGES        Default for --packages (space-separated)
+  BATCH_UPGRADE_VERSIONS        Default for --versions (space-separated)
+  BATCH_UPGRADE_REPOS           Default for --repos (space-separated)
+  BATCH_UPGRADE_BASE_BRANCH     Default for --base
+  BATCH_UPGRADE_YES=true        Default for --yes
+
+Exit codes:
+  0  Success
+  1  One or more repositories failed
+  2  Usage error (invalid flags or arguments)
+  3  GitHub CLI authentication failure
+  4  Repository or base branch not found
+  5  Dirty working tree (use --reset-hard to override)
+`
+  )
   .exitOverride((err) => {
     if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
       process.exit(0);
@@ -180,6 +235,7 @@ async function run() {
       versions,
       repos,
       resetHard: options.resetHard === true,
+      baseBranch: options.base || null,
     });
     if (spinner) spinner.succeed('Package update process completed successfully.');
     if (log.isJson()) {
