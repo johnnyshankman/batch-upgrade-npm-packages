@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CLI snapshots --help output is stable 1`] = `
+"Usage: batch-upgrade-npm [options]
+
+A CLI tool to upgrade npm packages across multiple repositories
+
+Options:
+  -V, --version                 output the version number
+  -p, --packages <packages...>  packages to update (space separated)
+  -v, --versions <versions...>  version ranges (space separated, matching
+                                packages order)
+  -r, --repos <repos...>        repository paths (space separated, relative to
+                                current directory)
+  -i, --interactive             run in interactive mode (will prompt for input)
+  -h, --help                    display help for command
+"
+`;
