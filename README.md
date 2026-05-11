@@ -8,16 +8,16 @@ A command-line tool to upgrade npm packages across multiple repositories with au
 ## Features
 
 - Update npm packages across multiple repositories in one command
-- Subcommand-based CLI (`upgrade`, `config`, `completion`) familiar to users of `gh`/`docker`/`kubectl`
+- Creates timestamped feature branches and opens PRs via the GitHub CLI for each repo; never commits to main
+- Skips packages that are already up-to-date (semver-aware)
+- Searches `dependencies`, `devDependencies`, and `peerDependencies`
+- Per-repo failures don't stop the run; the summary tells you what succeeded
 - Safe by default: refuses to overwrite uncommitted changes unless you explicitly opt in
 - Auto-detects each repo's base branch (`main`, `master`, or whatever `origin/HEAD` points at) — no hardcoding
 - `--dry-run` previews every change without touching any repo or remote
 - `--json` emits a machine-readable summary for scripting and CI
+- Subcommand-based CLI (`upgrade`, `config`, `completion`) familiar to users of `gh`/`docker`/`kubectl`
 - Documented exit codes; respects `NO_COLOR`, `CI`, and `BATCH_UPGRADE_*` env vars
-- Creates timestamped feature branches and opens PRs via the GitHub CLI; never commits to main
-- Skips packages that are already up-to-date (semver-aware)
-- Searches `dependencies`, `devDependencies`, and `peerDependencies`
-- Per-repo failures don't stop the run; the summary tells you what succeeded
 - Shell completion for bash, zsh, and fish
 
 ## Requirements
