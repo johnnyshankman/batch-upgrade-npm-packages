@@ -27,6 +27,7 @@ applyLegacyShim();
 
 program
   .name('batch-upgrade-npm')
+  .usage('<command> [options]')
   .description('A CLI tool to upgrade npm packages across multiple repositories')
   .version(pkg.version)
   .option('-q, --quiet', 'suppress non-error output')
