@@ -1,8 +1,8 @@
-const { runCmd } = require('./runCmd');
-const log = require('./log');
-const { CODES, CliError } = require('./exit-codes');
+import { runCmd } from './runCmd.js';
+import * as log from './log.js';
+import { CODES, CliError } from './exit-codes.js';
 
-async function detectBaseBranch(repoPath, override) {
+export async function detectBaseBranch(repoPath: string, override?: string): Promise<string> {
   if (override) return override;
 
   const symbolic = await runCmd('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
@@ -16,7 +16,7 @@ async function detectBaseBranch(repoPath, override) {
     }
   }
 
-  for (const candidate of ['main', 'master']) {
+  for (const candidate of ['main', 'master'] as const) {
     const exists = await runCmd(
       'git',
       ['show-ref', '--verify', '--quiet', `refs/heads/${candidate}`],
@@ -34,5 +34,3 @@ async function detectBaseBranch(repoPath, override) {
     'pass --base <branch> (e.g. --base develop)'
   );
 }
-
-module.exports = { detectBaseBranch };

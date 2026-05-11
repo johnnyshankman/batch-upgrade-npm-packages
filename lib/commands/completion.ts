@@ -1,10 +1,12 @@
-const chalk = require('chalk');
-const log = require('../log');
-const { CODES } = require('../exit-codes');
+import type { Command } from 'commander';
+import chalk from 'chalk';
+import * as log from '../log.js';
+import { CODES } from '../exit-codes.js';
 
-const SHELLS = ['bash', 'zsh', 'fish'];
+const SHELLS = ['bash', 'zsh', 'fish'] as const;
+type Shell = (typeof SHELLS)[number];
 
-const SUBCOMMANDS = ['upgrade', 'config', 'completion', 'help'];
+const SUBCOMMANDS = ['upgrade', 'config', 'completion', 'help'] as const;
 const UPGRADE_FLAGS = [
   '--packages',
   '-p',
@@ -29,10 +31,10 @@ const UPGRADE_FLAGS = [
   '--no-color',
   '--help',
   '-h',
-];
-const CONFIG_SUB = ['get', 'set', 'list'];
+] as const;
+const CONFIG_SUB = ['get', 'set', 'list'] as const;
 
-function bashScript() {
+function bashScript(): string {
   return `# bash completion for batch-upgrade-npm
 _batch_upgrade_npm() {
   local cur prev cmd
@@ -66,7 +68,7 @@ complete -F _batch_upgrade_npm batch-upgrade-npm
 `;
 }
 
-function zshScript() {
+function zshScript(): string {
   return `#compdef batch-upgrade-npm
 # zsh completion for batch-upgrade-npm
 _batch_upgrade_npm() {
@@ -101,7 +103,7 @@ compdef _batch_upgrade_npm batch-upgrade-npm
 `;
 }
 
-function fishScript() {
+function fishScript(): string {
   let out = '# fish completion for batch-upgrade-npm\n';
   for (const sub of SUBCOMMANDS) {
     out += `complete -c batch-upgrade-npm -n "__fish_use_subcommand" -a "${sub}"\n`;
@@ -122,7 +124,11 @@ function fishScript() {
   return out;
 }
 
-module.exports = function registerCompletion(program) {
+function isShell(s: string): s is Shell {
+  return (SHELLS as readonly string[]).includes(s);
+}
+
+export default function registerCompletion(program: Command): void {
   program
     .command('completion <shell>')
     .usage('<shell> [options]')
@@ -141,7 +147,12 @@ Examples:
   $ batch-upgrade-npm completion fish > ~/.config/fish/completions/batch-upgrade-npm.fish
 `
     )
-    .action((shell) => {
+    .action((shell: string) => {
+      if (!isShell(shell)) {
+        log.error(chalk.red(`Error: unknown shell '${shell}'.`));
+        log.error(chalk.red(`  → Try: ${SHELLS.join(', ')}`));
+        process.exit(CODES.USAGE);
+      }
       switch (shell) {
         case 'bash':
           process.stdout.write(bashScript());
@@ -152,10 +163,6 @@ Examples:
         case 'fish':
           process.stdout.write(fishScript());
           break;
-        default:
-          log.error(chalk.red(`Error: unknown shell '${shell}'.`));
-          log.error(chalk.red(`  → Try: ${SHELLS.join(', ')}`));
-          process.exit(CODES.USAGE);
       }
     });
-};
+}

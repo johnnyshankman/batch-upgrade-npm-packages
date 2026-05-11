@@ -1,16 +1,22 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execSync } = require('child_process');
+import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 
-const { detectBaseBranch } = require('../lib/detectBaseBranch');
-const { CliError, CODES } = require('../lib/exit-codes');
+import { detectBaseBranch } from '../lib/detectBaseBranch.js';
+import { CliError, CODES } from '../lib/exit-codes.js';
 
-function sh(cmd, cwd) {
+function sh(cmd: string, cwd: string): string {
   return execSync(cmd, { cwd, stdio: 'pipe' }).toString();
 }
 
-function makeBareRemoteRepo({ branch = 'main' } = {}) {
+interface RepoFixture {
+  dir: string;
+  cleanup(): void;
+}
+
+function makeBareRemoteRepo({ branch = 'main' }: { branch?: string } = {}): RepoFixture {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bu-bbb-'));
   const repoDir = path.join(root, 'repo');
   const remoteDir = path.join(root, 'remote.git');
@@ -90,8 +96,11 @@ describe('detectBaseBranch', () => {
       try {
         await detectBaseBranch(repoDir);
       } catch (err) {
-        expect(err.code).toBe(CODES.NOT_FOUND);
-        expect(err.hint).toMatch(/--base/);
+        expect(err).toBeInstanceOf(CliError);
+        if (err instanceof CliError) {
+          expect(err.code).toBe(CODES.NOT_FOUND);
+          expect(err.hint).toMatch(/--base/);
+        }
       }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

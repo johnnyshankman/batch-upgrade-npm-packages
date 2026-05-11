@@ -1,4 +1,5 @@
-const { runCli } = require('./helpers/runCli');
+import { describe, it, expect } from 'vitest';
+import { runCli } from './helpers/runCli.js';
 
 describe('CLI baseline (passes against current code; documents present behavior)', () => {
   describe('--version / -V', () => {

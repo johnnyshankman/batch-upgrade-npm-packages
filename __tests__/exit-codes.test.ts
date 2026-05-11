@@ -1,4 +1,5 @@
-const { CODES, CliError } = require('../lib/exit-codes');
+import { describe, it, expect } from 'vitest';
+import { CODES, CliError } from '../lib/exit-codes.js';
 
 describe('exit-codes', () => {
   it('CODES is a fixed numeric map', () => {

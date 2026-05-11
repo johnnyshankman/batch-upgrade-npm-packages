@@ -1,14 +1,19 @@
-const fs = require('fs');
-const path = require('path');
-const { runCli } = require('./helpers/runCli');
-const { makeRepo } = require('./helpers/gitFixture');
-const { makeMockGh } = require('./helpers/mockGh');
+import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { runCli } from './helpers/runCli.js';
+import { makeRepo } from './helpers/gitFixture.js';
+import { makeMockGh } from './helpers/mockGh.js';
 
-const pkg = require('../../package.json');
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
 
-// CLI Contract Test Matrix for v2.0.0.
-// Each `it.skip(...)` carries a [unlocks: PR<n>] tag. As each plan-PR lands,
-// the corresponding tests flip from .skip to active.
+// CLI Contract Test Matrix for v3.0.0.
+// The `[unlocks: PRn]` tags are historical and refer to the 2.0 plan.
+// All `upgrade`-flow invocations now require the explicit `upgrade` subcommand
+// (the legacy flag-only shim was removed in 3.0).
 
 describe('CLI contract — version sync', () => {
   it('--version equals package.json version [unlocks: PR1]', async () => {
@@ -27,7 +32,7 @@ describe('CLI contract — exit codes', () => {
 
   it('returns exit 2 for mismatched packages/versions counts [unlocks: PR1]', async () => {
     const r = await runCli(
-      ['--packages', 'a', 'b', '--versions', '1.0.0', '--repos', 'x', '--yes'],
+      ['upgrade', '--packages', 'a', 'b', '--versions', '1.0.0', '--repos', 'x', '--yes'],
       { stdin: '' }
     );
     expect(r.code).toBe(2);
@@ -45,7 +50,7 @@ describe('CLI contract — exit codes', () => {
     const repo = makeRepo();
     try {
       const r = await runCli(
-        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes'],
+        ['upgrade', '--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes'],
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(3);
@@ -61,7 +66,7 @@ describe('CLI contract — exit codes', () => {
     const repo = makeRepo({ dirty: true });
     try {
       const r = await runCli(
-        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes'],
+        ['upgrade', '--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes'],
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(5);
@@ -81,14 +86,24 @@ describe('CLI contract — --dry-run [unlocks: PR4]', () => {
     const before = repo.headSha;
     try {
       const r = await runCli(
-        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes', '--dry-run'],
+        [
+          'upgrade',
+          '--packages',
+          'react',
+          '--versions',
+          '^18.0.0',
+          '--repos',
+          repo.dir,
+          '--yes',
+          '--dry-run',
+        ],
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(0);
       expect(r.stderr).toMatch(/\[dry-run\]/);
       expect(repo.headNow()).toBe(before);
       expect(repo.status()).toBe('');
-      expect(repo.readPackageJson().dependencies.react).toBe('^17.0.0');
+      expect(repo.readPackageJson().dependencies?.['react']).toBe('^17.0.0');
     } finally {
       repo.cleanup();
       mockGh.cleanup();
@@ -111,6 +126,7 @@ describe('CLI contract — --dry-run [unlocks: PR4]', () => {
     try {
       await runCli(
         [
+          'upgrade',
           '--packages',
           'evil-pkg',
           '--versions',
@@ -137,6 +153,7 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
     try {
       const r = await runCli(
         [
+          'upgrade',
           '--packages',
           'react',
           '--versions',
@@ -150,13 +167,25 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(0);
-      const parsed = JSON.parse(r.stdout.trim());
+      const parsed = JSON.parse(r.stdout.trim()) as {
+        summary: { total: number; succeeded: number; failed: number; skipped: number };
+        repositories: Array<{
+          status: string;
+          updates: Array<{
+            package: string;
+            fromVersion: string;
+            toVersion: string;
+            section: string;
+          }>;
+        }>;
+        dryRun: boolean;
+      };
       expect(parsed).toHaveProperty('summary');
       expect(parsed.summary).toEqual({ total: 1, succeeded: 1, failed: 0, skipped: 0 });
       expect(parsed).toHaveProperty('repositories');
       expect(Array.isArray(parsed.repositories)).toBe(true);
-      expect(parsed.repositories[0].status).toBe('success');
-      expect(parsed.repositories[0].updates).toEqual([
+      expect(parsed.repositories[0]?.status).toBe('success');
+      expect(parsed.repositories[0]?.updates).toEqual([
         { package: 'react', fromVersion: '^17.0.0', toVersion: '^18.0.0', section: 'dependencies' },
       ]);
       expect(parsed.dryRun).toBe(true);
@@ -171,16 +200,29 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
     const repo = makeRepo();
     try {
       const r = await runCli(
-        ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes', '--json'],
+        [
+          'upgrade',
+          '--packages',
+          'react',
+          '--versions',
+          '^18.0.0',
+          '--repos',
+          repo.dir,
+          '--yes',
+          '--json',
+        ],
         { env: { PATH: mockGh.envPath } }
       );
       // npm install will fail in the fixture (react isn't really installable
       // in a standalone temp dir without registry access in CI); accept either
       // success with prUrl, or failure status, but the JSON must always parse.
-      const parsed = JSON.parse(r.stdout.trim());
+      const parsed = JSON.parse(r.stdout.trim()) as {
+        summary: unknown;
+        repositories: Array<{ status: string; prUrl?: string | null }>;
+      };
       expect(parsed).toHaveProperty('summary');
       expect(parsed).toHaveProperty('repositories');
-      if (parsed.repositories[0].status === 'success') {
+      if (parsed.repositories[0]?.status === 'success') {
         expect(parsed.repositories[0].prUrl).toBe('https://github.com/fake/repo/pull/1');
       }
     } finally {
@@ -208,7 +250,7 @@ describe('CLI contract — color [unlocks: PR3]', () => {
 
 describe('CLI contract — logging flags [unlocks: PR3]', () => {
   it('--quiet --verbose is rejected with exit 2', async () => {
-    const r = await runCli(['--quiet', '--verbose']);
+    const r = await runCli(['upgrade', '--quiet', '--verbose']);
     expect(r.code).toBe(2);
     expect(r.stderr).toMatch(/mutually exclusive/i);
   });
@@ -219,7 +261,7 @@ describe('CLI contract — env vars [unlocks: PR7]', () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
-      const r = await runCli(['--yes', '--dry-run'], {
+      const r = await runCli(['upgrade', '--yes', '--dry-run'], {
         env: {
           PATH: mockGh.envPath,
           BATCH_UPGRADE_PACKAGES: 'react',
@@ -238,7 +280,7 @@ describe('CLI contract — env vars [unlocks: PR7]', () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
-      const r = await runCli(['--packages', 'react', '--yes', '--dry-run'], {
+      const r = await runCli(['upgrade', '--packages', 'react', '--yes', '--dry-run'], {
         env: {
           PATH: mockGh.envPath,
           BATCH_UPGRADE_PACKAGES: 'shouldbeignored',
@@ -262,6 +304,7 @@ describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
     try {
       const r = await runCli(
         [
+          'upgrade',
           '--packages',
           'react',
           '--versions',
@@ -288,6 +331,7 @@ describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
     try {
       const r = await runCli(
         [
+          'upgrade',
           '--packages',
           'react',
           '--versions',
@@ -303,8 +347,10 @@ describe('CLI contract — base-branch auto-detect [unlocks: PR7]', () => {
         { env: { PATH: mockGh.envPath } }
       );
       expect(r.code).toBe(0);
-      const parsed = JSON.parse(r.stdout.trim());
-      expect(parsed.repositories[0].baseBranch).toBe('main');
+      const parsed = JSON.parse(r.stdout.trim()) as {
+        repositories: Array<{ baseBranch: string }>;
+      };
+      expect(parsed.repositories[0]?.baseBranch).toBe('main');
     } finally {
       repo.cleanup();
       mockGh.cleanup();
@@ -364,7 +410,7 @@ describe('CLI contract — subcommands [unlocks: PR8]', () => {
     expect(r.stderr).toMatch(/bash, zsh, fish/);
   });
 
-  it('legacy flag-only form prints deprecation warning to stderr and still works', async () => {
+  it('legacy flag-only form (removed in 3.0) now exits 2 with unknown option', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     try {
@@ -372,8 +418,8 @@ describe('CLI contract — subcommands [unlocks: PR8]', () => {
         ['--packages', 'react', '--versions', '^18.0.0', '--repos', repo.dir, '--yes', '--dry-run'],
         { env: { PATH: mockGh.envPath } }
       );
-      expect(r.code).toBe(0);
-      expect(r.stderr).toMatch(/[Dd]eprecat/);
+      expect(r.code).toBe(2);
+      expect(r.stderr.toLowerCase()).toMatch(/unknown option/);
     } finally {
       repo.cleanup();
       mockGh.cleanup();

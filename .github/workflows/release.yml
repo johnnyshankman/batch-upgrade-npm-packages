@@ -28,9 +28,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
       - run: npm ci
+      - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
+      - run: npm run build
 
   release:
     name: Publish to npm + tag + GitHub release
@@ -96,6 +98,9 @@ jobs:
             echo "::error::Git tag ${{ steps.pkg.outputs.tag }} already exists on origin." >&2
             exit 1
           fi
+
+      - name: Build (TS → dist)
+        run: npm run build
 
       - name: Publish to npm (OIDC + provenance)
         if: ${{ inputs.dry_run == false }}

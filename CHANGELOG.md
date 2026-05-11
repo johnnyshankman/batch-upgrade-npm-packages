@@ -4,6 +4,65 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0]
+
+### Breaking changes
+
+- **ESM-only.** `batch-upgrade-npm-packages` is now published as an ES module
+  (`"type": "module"`). The library API (`updatePackages` and its companion
+  types/utilities) must be consumed via `import`, e.g.:
+
+  ```js
+  import { updatePackages } from 'batch-upgrade-npm-packages';
+  ```
+
+  `require('batch-upgrade-npm-packages')` no longer works. The CLI binary
+  (`batch-upgrade-npm`) is unaffected — it spawns its own process and presents
+  no API surface to callers.
+
+- **The legacy flag-only CLI form is removed.** The 2.0 deprecation shim that
+  let you invoke `batch-upgrade-npm -p <pkg> --versions <ver> -r <repo>` (with
+  no `upgrade` subcommand) is gone. Use `batch-upgrade-npm upgrade <flags>`.
+  Bare flag invocations now exit `2` with `error: unknown option '-p'`.
+- **Source is TypeScript with strict types.** The shipped artifact is plain
+  ESM JavaScript compiled to `dist/`; consumers don't need TypeScript to use
+  it, but they get full `.d.ts` definitions for free.
+
+### Added
+
+- **TypeScript type definitions** ship with the package. The following types
+  are exported from the package entry point:
+  - `UpdatePackagesOptions`, `UpdatePackagesResult`, `UpdateSummary`
+  - `RepositoryResult`, `PackageUpdate`, `UpdateSection`
+  - `CliError`, `ExitCode`, `CODES`
+
+### Changed
+
+- **Test runner:** Jest → Vitest. The CLI test surface and the `--help`
+  snapshot are unchanged byte-for-byte.
+- **Lint stack:** ESLint 9 flat config (`eslint.config.js`) +
+  `typescript-eslint` 8. The legacy `.eslintrc.json` / `.eslintignore` are
+  removed.
+- **Build tooling:** TypeScript 5 + `tsc` for the publishable build; `tsx`
+  for running tests directly against `.ts` source (no pre-build step
+  required to run `npm test`).
+- **Dependency bumps (ESM-only majors):** `chalk` 4 → 5, `execa` 5 → 9,
+  `inquirer` 8 → 12, `ora` 5 → 8, `commander` 9 → 12. Runtime behavior is
+  preserved; these moves were forced by the ESM-only conversion. (`ora` is
+  pinned to `^8` rather than `^9` because ora 9 raises its minimum to
+  Node 20.)
+- **Coverage:** `c8` → `@vitest/coverage-v8`. Same V8 native coverage
+  underneath, with source maps that attribute lines back to the `.ts`
+  source — including the bin spawned by integration tests.
+
+### Unchanged contracts
+
+- All exit codes (`0`/`1`/`2`/`3`/`4`/`5`) — unchanged.
+- `--json` output schema — unchanged.
+- Every flag name and short alias — unchanged.
+- `--help` output — byte-identical to 2.0.
+- Node.js 18+ minimum — unchanged.
+
 ## [2.0.0]
 
 ### Breaking changes
@@ -94,5 +153,6 @@ dryRun }` where `repositories[]` carries `status`, `branch`, `baseBranch`,
 
 The starting point for the 2.0.0 refactor. See git history for details.
 
+[3.0.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/releases/tag/v1.1.0

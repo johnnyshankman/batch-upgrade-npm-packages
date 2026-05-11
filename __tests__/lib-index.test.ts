@@ -1,15 +1,21 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
-const {
+import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
   packageExists,
   getCurrentVersion,
   versionIsHigherOrEqual,
   updatePackageJson,
-} = require('../lib/index');
+} from '../lib/index.js';
 
-function tmpPackageJson(contents) {
+interface Tmp {
+  dir: string;
+  file: string;
+  cleanup(): void;
+}
+
+function tmpPackageJson(contents: unknown): Tmp {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bu-lib-test-'));
   const file = path.join(dir, 'package.json');
   fs.writeFileSync(
@@ -131,7 +137,7 @@ describe('versionIsHigherOrEqual', () => {
     ['1.0.0', '1.0.0', true],
     ['=2.0.0', '1.9.9', true],
     ['^17.0.0', '^18.0.0', false],
-  ])('versionIsHigherOrEqual(%s, %s) → %s', (a, b, expected) => {
+  ] as const)('versionIsHigherOrEqual(%s, %s) → %s', (a, b, expected) => {
     expect(versionIsHigherOrEqual(a, b)).toBe(expected);
   });
 });
@@ -142,7 +148,9 @@ describe('updatePackageJson', () => {
     try {
       const result = updatePackageJson('react', 'dependencies', '^18.0.0', t.file);
       expect(result).toBe(true);
-      const after = JSON.parse(fs.readFileSync(t.file, 'utf8'));
+      const after = JSON.parse(fs.readFileSync(t.file, 'utf8')) as {
+        dependencies: { react: string };
+      };
       expect(after.dependencies.react).toBe('^18.0.0');
     } finally {
       t.cleanup();
