@@ -6,16 +6,14 @@ const chalk = require('chalk');
 const ora = require('ora');
 const pkg = require('../package.json');
 const { updatePackages } = require('../lib/index');
+const log = require('../lib/log');
 
 program
   .name('batch-upgrade-npm')
   .description('A CLI tool to upgrade npm packages across multiple repositories')
   .version(pkg.version)
   .option('-p, --packages <packages...>', 'packages to update (space separated)')
-  .option(
-    '--versions <versions...>',
-    'version ranges (space separated, matching packages order)'
-  )
+  .option('--versions <versions...>', 'version ranges (space separated, matching packages order)')
   .option(
     '-r, --repos <repos...>',
     'repository paths (space separated, relative to current directory)'
@@ -26,6 +24,10 @@ program
     '--reset-hard',
     'discard uncommitted changes in target repos before updating (DESTRUCTIVE)'
   )
+  .option('-q, --quiet', 'suppress non-error output')
+  .option('-v, --verbose', 'verbose output (includes child process output)')
+  .option('--debug', 'debug output (alias for --verbose with extra detail)')
+  .option('--no-color', 'disable colorized output (also honors NO_COLOR env)')
   .exitOverride((err) => {
     if (err.code === 'commander.helpDisplayed' || err.code === 'commander.version') {
       process.exit(0);
@@ -44,6 +46,21 @@ function shouldAutoConfirm(options) {
 
 async function run() {
   const options = program.opts();
+
+  if (options.quiet && (options.verbose || options.debug)) {
+    process.stderr.write(
+      chalk.red('Error: --quiet is mutually exclusive with --verbose and --debug.\n')
+    );
+    process.exit(2);
+  }
+
+  log.configure({
+    quiet: options.quiet === true,
+    verbose: options.verbose === true,
+    debug: options.debug === true,
+    color: options.color === false ? false : undefined,
+  });
+
   let packages = options.packages || [];
   let versions = options.versions || [];
   let repos = options.repos || [];
@@ -53,12 +70,12 @@ async function run() {
 
   if (interactive) {
     if (!process.stdin.isTTY) {
-      console.error(
+      log.error(
         chalk.red(
           'Error: Missing required arguments and stdin is not a TTY (non-interactive environment).'
         )
       );
-      console.error(
+      log.error(
         chalk.red(
           '  → Try: pass --packages, --versions, and --repos explicitly, or set them via env (BATCH_UPGRADE_*)'
         )
@@ -66,8 +83,8 @@ async function run() {
       process.exit(2);
     }
 
-    console.log(chalk.cyan('Batch NPM Package Upgrader'));
-    console.log(chalk.cyan('========================='));
+    log.info(chalk.cyan('Batch NPM Package Upgrader'));
+    log.info(chalk.cyan('========================='));
 
     const answers = await inquirer.prompt([
       {
@@ -105,30 +122,30 @@ async function run() {
   }
 
   if (packages.length !== versions.length) {
-    console.error(chalk.red('Error: Number of packages and versions must match.'));
+    log.error(chalk.red('Error: Number of packages and versions must match.'));
     process.exit(2);
   }
   if (packages.length === 0) {
-    console.error(chalk.red('Error: No packages specified.'));
+    log.error(chalk.red('Error: No packages specified.'));
     process.exit(2);
   }
   if (repos.length === 0) {
-    console.error(chalk.red('Error: No repositories specified.'));
+    log.error(chalk.red('Error: No repositories specified.'));
     process.exit(2);
   }
 
-  console.log(chalk.cyan('\nUpgrading packages:'));
+  log.info(chalk.cyan('\nUpgrading packages:'));
   for (let i = 0; i < packages.length; i++) {
-    console.log(chalk.green(`  ${packages[i]} → ${versions[i]}`));
+    log.info(chalk.green(`  ${packages[i]} → ${versions[i]}`));
   }
-  console.log(chalk.cyan('\nIn repositories:'));
+  log.info(chalk.cyan('\nIn repositories:'));
   for (const repo of repos) {
-    console.log(chalk.green(`  ${repo}`));
+    log.info(chalk.green(`  ${repo}`));
   }
 
   const auto = shouldAutoConfirm(options);
   if (auto.auto) {
-    console.error(chalk.yellow(`Auto-confirmed (${auto.reason}).`));
+    log.warn(chalk.yellow(`Auto-confirmed (${auto.reason}).`));
   } else {
     const { confirm } = await inquirer.prompt([
       {
@@ -139,12 +156,12 @@ async function run() {
       },
     ]);
     if (!confirm) {
-      console.log(chalk.yellow('Operation cancelled.'));
+      log.warn(chalk.yellow('Operation cancelled.'));
       process.exit(0);
     }
   }
 
-  const spinner = ora('Starting package update process...').start();
+  const spinner = log.isQuiet() || log.isJson() ? null : ora('Starting package update process...').start();
 
   try {
     await updatePackages({
@@ -153,14 +170,15 @@ async function run() {
       repos,
       resetHard: options.resetHard === true,
     });
-    spinner.succeed('Package update process completed successfully.');
+    if (spinner) spinner.succeed('Package update process completed successfully.');
   } catch (error) {
-    spinner.fail(`Error: ${error.message}`);
+    if (spinner) spinner.fail(`Error: ${error.message}`);
+    else log.error(chalk.red(`Error: ${error.message}`));
     process.exit(typeof error.code === 'number' ? error.code : 1);
   }
 }
 
 run().catch((error) => {
-  console.error(chalk.red(`Error: ${error.message}`));
+  log.error(chalk.red(`Error: ${error.message}`));
   process.exit(typeof error.code === 'number' ? error.code : 1);
 });

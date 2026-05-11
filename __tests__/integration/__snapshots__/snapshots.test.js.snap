@@ -17,6 +17,12 @@ Options:
                                 CI=true or non-TTY stdin)
   --reset-hard                  discard uncommitted changes in target repos
                                 before updating (DESTRUCTIVE)
+  -q, --quiet                   suppress non-error output
+  -v, --verbose                 verbose output (includes child process output)
+  --debug                       debug output (alias for --verbose with extra
+                                detail)
+  --no-color                    disable colorized output (also honors NO_COLOR
+                                env)
   -h, --help                    display help for command
 "
 `;

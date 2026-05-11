@@ -158,23 +158,23 @@ describe('CLI contract — --json [unlocks: PR6]', () => {
 });
 
 describe('CLI contract — color [unlocks: PR3]', () => {
-  it.skip('--no-color strips ANSI escape sequences from help', async () => {
+  it('--no-color strips ANSI escape sequences from help', async () => {
     const r = await runCli(['--no-color', '--help']);
     expect(r.code).toBe(0);
     // eslint-disable-next-line no-control-regex
     expect(r.stdout).not.toMatch(/\x1b\[/);
   });
 
-  it.skip('NO_COLOR=1 strips ANSI escape sequences from help', async () => {
-    const r = await runCli(['--help'], { env: { NO_COLOR: '1' } });
-    expect(r.code).toBe(0);
+  it('NO_COLOR=1 strips ANSI escape sequences from messages', async () => {
+    const r = await runCli([], { env: { NO_COLOR: '1' } });
+    expect(r.code).toBe(2);
     // eslint-disable-next-line no-control-regex
-    expect(r.stdout).not.toMatch(/\x1b\[/);
+    expect(r.stderr).not.toMatch(/\x1b\[/);
   });
 });
 
 describe('CLI contract — logging flags [unlocks: PR3]', () => {
-  it.skip('--quiet --verbose is rejected with exit 2', async () => {
+  it('--quiet --verbose is rejected with exit 2', async () => {
     const r = await runCli(['--quiet', '--verbose']);
     expect(r.code).toBe(2);
     expect(r.stderr).toMatch(/mutually exclusive/i);
