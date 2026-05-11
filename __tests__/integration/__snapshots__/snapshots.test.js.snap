@@ -17,6 +17,8 @@ Options:
                                 CI=true or non-TTY stdin)
   --reset-hard                  discard uncommitted changes in target repos
                                 before updating (DESTRUCTIVE)
+  -n, --dry-run                 preview changes without modifying any
+                                repository
   -q, --quiet                   suppress non-error output
   -v, --verbose                 verbose output (includes child process output)
   --debug                       debug output (alias for --verbose with extra

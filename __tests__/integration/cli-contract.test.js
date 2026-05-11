@@ -75,7 +75,7 @@ describe('CLI contract — exit codes', () => {
 });
 
 describe('CLI contract — --dry-run [unlocks: PR4]', () => {
-  it.skip('makes no changes to target repos', async () => {
+  it('makes no changes to target repos', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo();
     const before = repo.headSha;
@@ -88,13 +88,14 @@ describe('CLI contract — --dry-run [unlocks: PR4]', () => {
       expect(r.stderr).toMatch(/\[dry-run\]/);
       expect(repo.headNow()).toBe(before);
       expect(repo.status()).toBe('');
+      expect(repo.readPackageJson().dependencies.react).toBe('^17.0.0');
     } finally {
       repo.cleanup();
       mockGh.cleanup();
     }
   });
 
-  it.skip('shell-injection regression: malicious package name does not execute', async () => {
+  it('shell-injection regression: malicious version does not execute', async () => {
     const mockGh = makeMockGh();
     const repo = makeRepo({
       packageJson: {
@@ -103,12 +104,15 @@ describe('CLI contract — --dry-run [unlocks: PR4]', () => {
         dependencies: { 'evil-pkg': '^1.0.0' },
       },
     });
-    const sentinel = path.join(repo.root, `HACK_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    const sentinel = path.join(
+      repo.root,
+      `HACK_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    );
     try {
       await runCli(
         [
           '--packages',
-          `evil-pkg`,
+          'evil-pkg',
           '--versions',
           `2.0.0"; touch '${sentinel}'; echo "`,
           '--repos',

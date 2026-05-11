@@ -24,6 +24,7 @@ program
     '--reset-hard',
     'discard uncommitted changes in target repos before updating (DESTRUCTIVE)'
   )
+  .option('-n, --dry-run', 'preview changes without modifying any repository')
   .option('-q, --quiet', 'suppress non-error output')
   .option('-v, --verbose', 'verbose output (includes child process output)')
   .option('--debug', 'debug output (alias for --verbose with extra detail)')
@@ -59,6 +60,7 @@ async function run() {
     verbose: options.verbose === true,
     debug: options.debug === true,
     color: options.color === false ? false : undefined,
+    dryRun: options.dryRun === true,
   });
 
   let packages = options.packages || [];
