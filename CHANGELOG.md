@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0]
+
+### Breaking changes
+
+- **Minimum Node.js raised to 22.** Node.js 18 (end-of-life 2025-04-30) and
+  Node.js 20 (end-of-life 2026-04-30) are no longer supported. `engines.node`
+  is now `>=22.0.0`. Installing on Node 18 or 20 produces an `EBADENGINE`
+  warning; running the CLI or importing the library on those versions is
+  unsupported. The supported set is the active Node.js LTS lines — 22 and 24.
+
+### Changed
+
+- **`ora` 8 → 9.** ora 9 raised its own minimum to Node 20, which no longer
+  conflicts with this package's (now 22) floor — so the `^8` pin documented
+  in the 3.0 entry is lifted. ora's spinner API is unchanged; there is no
+  runtime-behavior change.
+- **`@types/node` 20 → 22**, tracking the new minimum so typechecks flag any
+  use of APIs unavailable on the lowest supported runtime.
+- **CI runs on Node 22 and 24** (was 18, 20, 22) in `build.yml` and `ci.yml`.
+  The `release.yml` publish pipeline now runs on Node 24 (was 20).
+
+### Unchanged contracts
+
+- All exit codes (`0`/`1`/`2`/`3`/`4`/`5`) — unchanged.
+- `--json` output schema — unchanged.
+- Every flag name and short alias — unchanged.
+- `--help` output — unchanged.
+- The `updatePackages` library API and all exported types — unchanged.
+
 ## [3.0.0]
 
 ### Breaking changes
@@ -153,6 +182,7 @@ dryRun }` where `repositories[]` carries `status`, `branch`, `baseBranch`,
 
 The starting point for the 2.0.0 refactor. See git history for details.
 
+[4.0.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/compare/v3.0.0...v4.0.0
 [3.0.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/compare/v2.0.0...v3.0.0
 [2.0.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/johnnyshankman/batch-upgrade-npm-packages/releases/tag/v1.1.0

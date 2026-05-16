@@ -22,7 +22,7 @@ A command-line tool to upgrade npm packages across multiple repositories with au
 
 ## Requirements
 
-- Node.js 18 or higher
+- Node.js 22 or higher
 - Git
 - [GitHub CLI](https://cli.github.com/) (`gh`), authenticated with `gh auth login`
 - npm

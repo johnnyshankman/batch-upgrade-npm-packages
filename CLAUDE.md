@@ -6,22 +6,22 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 `batch-upgrade-npm-packages` — Node.js CLI that upgrades npm packages across multiple repos, commits to a feature branch, and opens GitHub PRs via `gh`. Published to npm as `batch-upgrade-npm-packages`; installed binary is `batch-upgrade-npm`.
 
-Current version: 3.0.0 (see `CHANGELOG.md` for the 3.0 breaking changes — ESM-only library API, legacy CLI shim removed, source migrated to TypeScript).
+Current version: 4.0.0 (see `CHANGELOG.md` — 4.0 dropped end-of-life Node 18 and 20, raising the minimum to Node.js 22 and bumping `ora` to v9; 3.0 was the ESM-only + TypeScript migration).
 
 ## Stack
 
-- Runtime: Node.js >=18
+- Runtime: Node.js >=22
 - Module format: ESM (`"type": "module"`). Source is TypeScript; published artifact is plain ESM JS in `dist/`.
 - Source language: TypeScript 5 (strict, `NodeNext`, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `isolatedModules`)
 - CLI framework: `commander` v12
 - Subprocess: `execa` v9 (argv-array calls only — never shell strings)
 - Prompts: `inquirer` v12
-- Spinner: `ora` v8 (held back from v9 because ora 9 requires Node 20+); colors: `chalk` v5
+- Spinner: `ora` v9; colors: `chalk` v5
 - Semver: `semver` v7
 - Tests: `vitest` v2 with two workspace projects (`unit`, `integration`); coverage via `c8` wrapping vitest (config in `.c8rc.json`)
 - Lint/format: ESLint 9 (flat config, `eslint.config.js`) + `typescript-eslint` v8 + Prettier 3
 - Build: `tsc` → `dist/`, post-build script restores shebang + `chmod +x dist/bin/cli.js`
-- CI: GitHub Actions on Node 18/20/22 matrix. Three workflows: `build.yml` (push to `main`), `ci.yml` (PRs to `main`), `release.yml` (manual `workflow_dispatch` — npm Trusted Publishing via OIDC + provenance, gated on the `npm-release` environment).
+- CI: GitHub Actions on Node 22/24 matrix. Three workflows: `build.yml` (push to `main`), `ci.yml` (PRs to `main`), `release.yml` (manual `workflow_dispatch` — npm Trusted Publishing via OIDC + provenance, gated on the `npm-release` environment).
 
 ## Layout
 
