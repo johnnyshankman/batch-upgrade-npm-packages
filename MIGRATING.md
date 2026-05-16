@@ -1,3 +1,41 @@
+# Migrating from 3.x to 4.0
+
+`batch-upgrade-npm-packages` v4.0 is a runtime-support release. The only
+breaking change is the minimum Node.js version. The CLI surface (flags, exit
+codes, `--json` schema, `--help` text) and the library API are unchanged.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the full list of changes.
+
+## At a glance
+
+| 3.x form    | 4.0 form    |
+| ----------- | ----------- |
+| Node.js 18+ | Node.js 22+ |
+
+## Breaking change: Node.js 22+ required
+
+v4.0 drops Node.js 18 and 20. Both are end-of-life — Node 18 since
+2025-04-30, Node 20 since 2026-04-30 — and no longer receive security
+updates. The new minimum is **Node.js 22**; the project is tested against the
+active LTS lines, 22 and 24.
+
+If you run the CLI or import the library on Node 18 or 20, upgrade your
+runtime to Node 22 or newer. If you cannot upgrade the runtime, pin to the
+last 3.x release:
+
+```bash
+npm install -g batch-upgrade-npm-packages@3
+```
+
+## Non-breaking changes
+
+- `ora` was bumped 8 → 9 internally. ora 9 raises ora's own Node floor to 20,
+  which the new minimum already satisfies; there is no observable behavior
+  change.
+- CI now runs on Node 22 and 24 (was 18, 20, 22).
+
+---
+
 # Migrating from 2.x to 3.0
 
 `batch-upgrade-npm-packages` v3.0 is a tooling-and-ESM release. The CLI surface
